@@ -1,16 +1,15 @@
 -- DEPRECATED untuk produksi.
 -- Multi akun sekarang disimpan di database WS/billing.
--- Jalankan file ini di server:
---   ws/sql/multi_account_tables.sql
---
--- File di bawah hanya untuk testing lokal Laravel (opsional).
+-- Jalankan:
+--   DEMO_WS_TAGIHAN_CICILAN/sql/multi_account_tables.sql
+--   atau DEMO_WS_TAGIHAN_CICILAN/sql/install_missing_tables.sql
 
 CREATE TABLE IF NOT EXISTS multi_account_groups (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at DATETIME NULL,
+  updated_at DATETIME NULL,
   PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS multi_account_members (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -21,12 +20,12 @@ CREATE TABLE IF NOT EXISTS multi_account_members (
   kelas VARCHAR(100) NULL,
   jenjang VARCHAR(50) NULL,
   last_academic_year VARCHAR(50) NULL,
-  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at DATETIME NULL,
+  updated_at DATETIME NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_member_no_cust (no_cust),
   KEY idx_members_group (group_id),
   CONSTRAINT fk_members_group
     FOREIGN KEY (group_id) REFERENCES multi_account_groups(id)
     ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

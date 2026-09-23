@@ -268,7 +268,7 @@ class Tagihan
 
     private function stripVa($va_number)
     {
-        foreach (['751000', '797766'] as $prefix) {
+        foreach (['757777', '751000', '797766'] as $prefix) {
             if (strpos((string) $va_number, $prefix) === 0) {
                 return substr($va_number, strlen($prefix));
             }
@@ -330,7 +330,7 @@ class Tagihan
             b.BILLPAID AS billpaid, b.PAYMENTLEFT AS paymentleft,
             b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
             b.FTGLTagihan, b.FURUTAN, b.isINSTALLABLE AS isINSTALLABLE,
-            b.PAIDST, b.PAIDDT, b.ExpDate
+            b.PAIDST, b.PAIDDT
         ";
 
         $sqlBelum = "

@@ -330,7 +330,7 @@ class Tagihan
             b.BILLPAID AS billpaid, b.PAYMENTLEFT AS paymentleft,
             b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
             b.FTGLTagihan, b.FURUTAN, b.isINSTALLABLE AS isINSTALLABLE,
-            b.PAIDST, b.PAIDDT, b.ExpDate
+            b.PAIDST, b.PAIDDT
         ";
 
         $sqlBelum = "

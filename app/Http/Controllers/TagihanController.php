@@ -177,7 +177,14 @@ class TagihanController extends Controller
                     'body' => substr($response->body(), 0, 500),
                     'url' => $this->wsUrl('cek-tagihan-pw'),
                 ]);
-                $message = 'Web service tagihan error. Pastikan folder controllers/TagihanController.php ada di server WS.';
+                $body = (string) $response->body();
+                if (stripos($body, 'Unknown column') !== false && preg_match("/Unknown column '([^']+)'/", $body, $m)) {
+                    $message = 'Web service error: kolom DB '.$m[1].' tidak ada. Cek models/Tagihan.php di server WS.';
+                } elseif (stripos($body, 'Fatal error') !== false) {
+                    $message = 'Web service PHP fatal error. Cek laravel.log / response WS.';
+                } else {
+                    $message = 'Web service tagihan error. Pastikan folder controllers/TagihanController.php ada di server WS.';
+                }
             }
 
             return back()->with([
