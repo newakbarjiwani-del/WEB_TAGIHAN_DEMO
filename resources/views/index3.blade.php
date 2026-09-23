@@ -58,7 +58,7 @@ function notify(message, type) {
       color: color,
       borderRadius: '4px',
       boxShadow: '0 2px 10px rgba(0,0,0,.18)',
-      fontFamily: "'IBM Plex Sans', 'Segoe UI', Tahoma, sans-serif",
+      fontFamily: "'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif",
       fontSize: '13px',
       maxWidth: 'min(420px, 92vw)',
       padding: '10px 14px'
