@@ -165,8 +165,8 @@ try {
         } elseif ($enamDigitVano === '111111') {
             require_once __DIR__.'/../config/connectQrDummy.php';
             require_once __DIR__.'/pushNotif/dummy.php';
-        } elseif ($enamDigitVano === '757777' || $enamDigitVano === '222222') {
-            // WEB_TAGIHAN_DEMO / tagihan cicilan — vano = 757777 + nocust (222222 legacy)
+        } elseif ($enamDigitVano === '751000' || $enamDigitVano === '757777' || $enamDigitVano === '222222') {
+            // WEB_TAGIHAN_DEMO / tagihan cicilan — vano = 751000 + nocust (legacy 757777/222222)
             require_once __DIR__.'/../config/connectTagihanCicilan.php';
             require_once __DIR__.'/pushNotif/tagihanCicilan.php';
         } else {

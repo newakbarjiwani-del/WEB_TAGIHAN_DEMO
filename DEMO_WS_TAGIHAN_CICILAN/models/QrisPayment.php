@@ -48,7 +48,7 @@ class QrisPayment
         }
 
         $nocust = preg_replace('/\s+/', '', (string) ($meta['nocust'] ?? ''));
-        foreach (['757777', '751000', '797766'] as $prefix) {
+        foreach (['751000', '757777', '797766'] as $prefix) {
             if (strpos($nocust, $prefix) === 0) {
                 $nocust = substr($nocust, strlen($prefix));
                 break;
@@ -57,7 +57,7 @@ class QrisPayment
         if ($nocust === '') {
             throw new InvalidArgumentException('nocust wajib diisi untuk vano QRIS');
         }
-        // Samakan VA bank: 757777 + NOCUST (routing pushNotif by prefix 757777)
+        // VA bank: 751000 + NOCUST (routing pushNotif by prefix 751000)
         $vaNumber = '751000' . $nocust;
         $transactionId = str_pad((string) mt_rand(0, 99999999), 8, '0', STR_PAD_LEFT);
         $amountStr = (string) $total;

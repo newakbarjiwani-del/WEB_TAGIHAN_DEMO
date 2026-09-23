@@ -27,7 +27,7 @@ class TagihanController extends Controller
         // Buang pemisah umum: 797766-1234567801 → 7977661234567801
         $va = preg_replace('/[-_.\/]/', '', $va);
 
-        if (preg_match('/^(757777|797766|751000)(\d+)$/', $va, $m)) {
+        if (preg_match('/^(751000|757777|797766)(\d+)$/', $va, $m)) {
             $va = $m[2];
         }
 
@@ -44,7 +44,7 @@ class TagihanController extends Controller
             return '-';
         }
 
-        return '757777'.$n;
+        return '751000'.$n;
     }
 
     /**

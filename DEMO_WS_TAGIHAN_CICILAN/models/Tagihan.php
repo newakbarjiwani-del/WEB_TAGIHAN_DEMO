@@ -268,7 +268,7 @@ class Tagihan
 
     private function stripVa($va_number)
     {
-        foreach (['757777', '751000', '797766'] as $prefix) {
+        foreach (['751000', '757777', '797766'] as $prefix) {
             if (strpos((string) $va_number, $prefix) === 0) {
                 return substr($va_number, strlen($prefix));
             }

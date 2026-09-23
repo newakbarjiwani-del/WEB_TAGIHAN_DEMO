@@ -1111,9 +1111,9 @@ function formatRp(n) {
 function formatNovaDisplay(va) {
   let n = String(va ?? '').replace(/\s+/g, '');
   if (!n || n === '-') return '-';
-  n = n.replace(/^(757777|797766|751000)/, '');
+  n = n.replace(/^(751000|757777|797766)/, '');
   n = n.replace(/^0+/, '') || n;
-  return n ? ('757777' + n) : '-';
+  return n ? ('751000' + n) : '-';
 }
 
 function esc(s) {
@@ -1459,7 +1459,7 @@ async function prosesGenerateVa(payload, total, nocust, btn) {
           Salin nomor VA
         </button>
         <p class="va-meta">Total: <b>${formatRp(total)}</b></p>
-        <p class="va-help">Bayar ke nomor VA di atas (kode bank 757777).</p>
+        <p class="va-help">Bayar ke nomor VA di atas (kode bank 751000).</p>
       </div>`;
     const methodBox = document.getElementById('payMethodBox');
     if (methodBox) methodBox.style.display = 'none';

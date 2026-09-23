@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS mst_qris (
   custid VARCHAR(64) NOT NULL,
   nocust VARCHAR(64) NOT NULL,
   namacust VARCHAR(191) NULL,
-  vano VARCHAR(64) NULL COMMENT '757777 + nocust (routing pushNotif)',
+  vano VARCHAR(64) NULL COMMENT '751000 + nocust (routing pushNotif)',
   amount DECIMAL(18,2) NOT NULL DEFAULT 0,
   qris_id VARCHAR(128) NULL,
   qris_content TEXT NULL COMMENT 'rawQrData EMV QR string',

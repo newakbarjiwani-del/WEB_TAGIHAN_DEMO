@@ -20,6 +20,6 @@ if ($dbhandle) {
 
 /** Prefix vano 6 digit untuk routing pushNotif.php (harus sama dengan generator). */
 $tagihanCicilanQrisConfig = [
-    'vano_prefix' => '757777', // vano QRIS = 757777 + nocust
-    'nova_bank_prefix' => '757777',
+    'vano_prefix' => '751000', // vano QRIS = 751000 + nocust
+    'nova_bank_prefix' => '751000',
 ];
