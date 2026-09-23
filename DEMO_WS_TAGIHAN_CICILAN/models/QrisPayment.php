@@ -58,7 +58,7 @@ class QrisPayment
             throw new InvalidArgumentException('nocust wajib diisi untuk vano QRIS');
         }
         // Samakan VA bank: 757777 + NOCUST (routing pushNotif by prefix 757777)
-        $vaNumber = '757777' . $nocust;
+        $vaNumber = '751000' . $nocust;
         $transactionId = str_pad((string) mt_rand(0, 99999999), 8, '0', STR_PAD_LEFT);
         $amountStr = (string) $total;
 
