@@ -1,17 +1,28 @@
 /* Master theme — portal tagihan institusional (bukan template SaaS). */
+@import url('https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap');
+
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;max-width:100%;overflow-x:hidden}
+html,body,button,input,select,textarea,table,th,td{
+  font-family:'Plus Jakarta Sans', system-ui, sans-serif !important;
+}
 body{
-  font-family:var(--font), 'Segoe UI', Tahoma, sans-serif !important;
+  font-family:'Plus Jakarta Sans', system-ui, sans-serif !important;
   background:var(--bg);
   color:var(--text);
   min-height:100vh;
   min-height:100dvh;
   line-height:1.4;
   -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
   width:100%;
   font-size:14px;
-  letter-spacing:0;
+  letter-spacing:-0.011em;
+  font-feature-settings:"ss01" on,"cv11" on;
+}
+.brand-name,.tbl-title,.aside-card h2,.modal-title,.bill-card h3{
+  letter-spacing:-0.02em;
+  font-weight:700;
 }
 /* Latar tenang — solid, tanpa gradient dekoratif */
 .page-bg{

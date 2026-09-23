@@ -80,16 +80,16 @@ return [
     'radius' => (int) env('BRAND_RADIUS', 3), // px — tajam, institusional
     'font_family' => env(
         'BRAND_FONT',
-        "'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif"
+        "'Plus Jakarta Sans', system-ui, sans-serif"
     ),
-    // Satu keluarga font — hindari serif display yang terasa template AI
     'font_display' => env(
         'BRAND_FONT_DISPLAY',
-        "'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif"
+        "'Plus Jakarta Sans', system-ui, sans-serif"
     ),
+    // Bunny Fonts biasanya lebih andal di jaringan lokal/ID
     'font_url' => env(
         'BRAND_FONT_URL',
-        'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap'
+        'https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap'
     ),
 
     /*

@@ -32,10 +32,11 @@
 <link rel="icon" href="{{ asset($brand['favicon']) }}">
 <link rel="apple-touch-icon" href="{{ asset($brand['icon_192']) }}">
 @if(!empty($brand['font_url']))
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
 <link href="{{ $brand['font_url'] }}" rel="stylesheet">
 @endif
+{{-- Fallback jika CDN config gagal --}}
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap">
 <style>
 :root{
   --brand-primary:{{ $c['primary'] }};
@@ -56,12 +57,15 @@
   --danger:#b71c1c;
   --radius:{{ $r }}px;
   --radius-sm:{{ $radiusSm }}px;
-  --font:{{ $brand['font_family'] }};
-  --font-display:{{ $brand['font_display'] ?? $brand['font_family'] }};
+  --font:'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display:'Plus Jakarta Sans', system-ui, sans-serif;
   --shadow:none;
   --table-head:#14532d;
   --btn-face:#ffffff;
   color-scheme:light;
+}
+html,body,button,input,select,textarea,table,th,td,.btn,.tbl-title,.brand-name,.brand-tagline,.aside-card,.sf,.modal,.bill-card{
+  font-family:var(--font) !important;
 }
 html.dark{
   --bg:{{ $c['dark_bg'] }};
