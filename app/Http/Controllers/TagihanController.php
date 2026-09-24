@@ -537,7 +537,7 @@ class TagihanController extends Controller
         $nocust = self::normalizeVa($request->nocust);
         $description = (string) $request->input(
             'description',
-            'Top up VA '.$request->namacust
+            'Top up saldo '.$request->namacust
         );
 
         $payload = [

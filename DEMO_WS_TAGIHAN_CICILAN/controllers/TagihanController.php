@@ -126,7 +126,7 @@ public function cek2()
                 'nocust' => $nocust,
                 'namacust' => $namacust,
                 'amount' => $amount,
-                'description' => $input['description'] ?? ('Top up VA ' . $namacust),
+                'description' => $input['description'] ?? ('Top up saldo ' . $namacust),
             ], $items);
             jsonResponse(true, empty($items) ? 'QRIS top up berhasil dibuat' : 'QRIS berhasil dibuat', $result);
         } catch (Exception $e) {
@@ -159,7 +159,7 @@ public function cek2()
         }
 
         $amount = (int) ($input['amount'] ?? $input['total'] ?? ($qris['amount'] ?? 0));
-        $description = (string) ($input['description'] ?? ('Top up VA ' . $namacust));
+        $description = (string) ($input['description'] ?? ('Top up saldo ' . $namacust));
         if (empty($items) && stripos($description, 'top') === false) {
             $description = 'TOPUP|'.$description;
         }

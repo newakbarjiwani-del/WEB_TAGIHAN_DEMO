@@ -224,7 +224,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
             </div>
           </div>
           <div class="profile-saldo">
-            <span>Saldo VA</span>
+            <span>Saldo</span>
             <strong id="saldoVaText">Rp {{ number_format($result['data']['saldo'] ?? 0, 0, ',', '.') }}</strong>
             <em class="saldo-chip">Siap pakai</em>
           </div>
@@ -234,7 +234,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         <div class="topup-panel">
           <div class="topup-copy">
             <p class="topup-kicker">Isi saldo</p>
-            <p class="topup-title">Top up saldo VA</p>
+            <p class="topup-title">Top up saldo</p>
             <p class="topup-hint">Tidak perlu pilih tagihan. Masukkan nominal, lalu bayar dengan scan QRIS.</p>
           </div>
           <div class="topup-actions">
@@ -244,7 +244,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
             </button>
             <button type="button" class="ui-btn ui-btn-primary btn-topup-qris" id="btnTopupQris" onclick="showTopupQrisModal()">
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-              Top up via QRIS
+              Top up saldo
             </button>
           </div>
         </div>
@@ -678,7 +678,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
 <div id="historyTopupModal" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="historyTopupTitle">
   <div class="modal-box modal-sm history-topup-modal">
     <div class="modal-head">
-      <h3 id="historyTopupTitle">History top up QRIS</h3>
+      <h3 id="historyTopupTitle">History top up saldo</h3>
       <button type="button" class="modal-x" onclick="closeHistoryTopupQris()" aria-label="Tutup">&times;</button>
     </div>
     <div class="modal-body">
@@ -1269,7 +1269,7 @@ function startPaymentWatch(opts) {
           stopPaymentWatch(true);
           const nominal = formatRp(json.data?.amount || amount);
           const title = 'Pembayaran berhasil';
-          const body = 'Top up ' + nominal + ' sudah masuk. Saldo VA akan diperbarui.';
+          const body = 'Top up ' + nominal + ' sudah masuk. Saldo akan diperbarui.';
           const tag = 'qris-' + (qrisId || transactionId || vano || Date.now());
           await notifyPaidUi(title, body, tag);
           const badge = document.querySelector('.qris-badge');
@@ -1941,7 +1941,7 @@ function formatHistoryPaidAt(raw) {
 
 function openHistoryTopupQris() {
   if (!paymentQrisEnabled) {
-    notifyWarn('QRIS nonaktif', 'Fitur top up QRIS belum diaktifkan.');
+    notifyWarn('QRIS nonaktif', 'Fitur top up saldo belum diaktifkan.');
     return;
   }
   const modal = document.getElementById('historyTopupModal');
@@ -1980,14 +1980,14 @@ async function loadHistoryTopupQris(force) {
     }
     const items = (json.data && json.data.items) || [];
     if (!items.length) {
-      box.innerHTML = '<div class="empty-note">Belum ada top up QRIS yang sukses.</div>';
+      box.innerHTML = '<div class="empty-note">Belum ada top up saldo yang sukses.</div>';
       return;
     }
     box.innerHTML = items.map(function (row, idx) {
       const amt = formatRp(row.amount || 0);
       const when = formatHistoryPaidAt(row.paid_at);
       const trx = row.transaction_id || row.qris_id || '-';
-      const desc = row.description || 'Top up QRIS';
+      const desc = row.description || 'Top up saldo';
       return (
         '<article class="history-topup-item">' +
           '<div class="history-topup-item-top">' +
@@ -2010,7 +2010,7 @@ async function loadHistoryTopupQris(force) {
 
 function showTopupQrisModal() {
   if (!paymentQrisEnabled) {
-    notifyWarn('QRIS nonaktif', 'Fitur top up QRIS belum diaktifkan.');
+    notifyWarn('QRIS nonaktif', 'Fitur top up saldo belum diaktifkan.');
     return;
   }
   if (!siswaBayar.id) {
@@ -2019,17 +2019,17 @@ function showTopupQrisModal() {
   }
 
   const head = document.querySelector('#paymentModal .modal-head h3');
-  if (head) head.textContent = 'Top up via QRIS';
+  if (head) head.textContent = 'Top up saldo';
 
   document.getElementById('paymentBody').innerHTML = `
     <div class="pay-info" style="margin-bottom:.85rem">
       <div><span class="pi-lbl">Nama</span><div class="pi-val">${esc(siswaBayar.nama) || '-'}</div></div>
       <div><span class="pi-lbl">NIS</span><div class="pi-val">${esc(siswaBayar.no_cust || siswaBayar.num2nd) || '-'}</div></div>
-      <div><span class="pi-lbl">Saldo VA</span><div class="pi-val">${formatRp(siswaBayar.saldo || 0)}</div></div>
+      <div><span class="pi-lbl">Saldo</span><div class="pi-val">${formatRp(siswaBayar.saldo || 0)}</div></div>
       <div><span class="pi-lbl">NOVA</span><div class="pi-val">${esc(formatNovaDisplay(siswaBayar.va_number || siswaBayar.no_cust)) || '-'}</div></div>
     </div>
     <div class="field" style="margin:0">
-      <label for="topupAmountInput">Nominal top up <em>*</em></label>
+      <label for="topupAmountInput">Nominal top up saldo <em>*</em></label>
       <input type="number" id="topupAmountInput" class="pay-input" min="1000" step="1000" placeholder="Contoh: 50000" inputmode="numeric" style="width:100%;max-width:100%;text-align:left;font-size:16px;padding:10px 12px">
       <p class="va-help" style="margin:.45rem 0 0">Minimal Rp 1.000. Saldo bertambah setelah QR berhasil dibayar.</p>
     </div>`;
@@ -2064,7 +2064,7 @@ async function prosesTopupQris() {
     nocust: nocust,
     namacust: siswaBayar.nama,
     amount: amount,
-    description: 'Top up VA ' + (siswaBayar.nama || ''),
+    description: 'Top up saldo ' + (siswaBayar.nama || ''),
     payment_type: 'topup',
     items: []
   };
@@ -2072,7 +2072,7 @@ async function prosesTopupQris() {
   try {
     await prosesGenerateQris(payload, amount, btn);
   } catch (err) {
-    notifyError('Terjadi kesalahan', 'Gagal membuat QRIS top up. Coba beberapa saat lagi.');
+    notifyError('Terjadi kesalahan', 'Gagal membuat QRIS top up saldo. Coba beberapa saat lagi.');
     if (btn) {
       btn.disabled = false;
       btn.textContent = 'Buat QRIS';
@@ -2106,14 +2106,14 @@ async function prosesGenerateQris(payload, total, btn) {
     const trx = trxId || qrisId || '-';
     const status = String(d.status || 'pending');
     const head = document.querySelector('#paymentModal .modal-head h3');
-    if (head) head.textContent = 'QRIS Top up';
+    if (head) head.textContent = 'Top up saldo';
     window.__qrisDownloadUrl = qrImgHd;
     window.__qrisDownloadId = String(trx).replace(/[^\w\-]+/g, '_').slice(0, 40) || String(Date.now());
 
     document.getElementById('paymentBody').innerHTML = `
       <div class="qris-result">
         <div class="qris-result-head">
-          <p class="qris-result-kicker">Nominal top up</p>
+          <p class="qris-result-kicker">Nominal top up saldo</p>
           <p class="qris-result-amount">${formatRp(total)}</p>
         </div>
         <div class="qris-result-frame">

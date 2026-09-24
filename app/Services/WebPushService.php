@@ -112,8 +112,8 @@ class WebPushService
         $title = (string) ($data['title'] ?? 'Pembayaran berhasil');
         $body = (string) ($data['body'] ?? (
             $amountText
-                ? "Top up {$amountText} sudah masuk. Saldo VA diperbarui."
-                : 'Pembayaran QRIS berhasil. Saldo VA diperbarui.'
+                ? "Top up {$amountText} sudah masuk. Saldo diperbarui."
+                : 'Pembayaran QRIS berhasil. Saldo diperbarui.'
         ));
 
         $iconPath = '/'.ltrim((string) config('brand.icon_192', 'icons/icon-192.png'), '/');

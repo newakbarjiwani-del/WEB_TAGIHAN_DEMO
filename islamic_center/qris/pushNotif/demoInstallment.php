@@ -300,8 +300,8 @@ if ($markResult === 'newly_paid') {
         'tag' => 'qris-'.($qrisId !== '' ? $qrisId : ($trxId ?: time())),
         'title' => 'Pembayaran berhasil',
         'body' => is_numeric($amountVal)
-            ? ('Top up Rp '.number_format((float) $amountVal, 0, ',', '.').' sudah masuk. Saldo VA diperbarui.')
-            : 'Pembayaran QRIS berhasil. Saldo VA diperbarui.',
+            ? ('Top up Rp '.number_format((float) $amountVal, 0, ',', '.').' sudah masuk. Saldo diperbarui.')
+            : 'Pembayaran QRIS berhasil. Saldo diperbarui.',
     ]);
     $requestSnapshot['webpush'] = $webPushResult;
     error_log('demoInstallment webpush result: '.json_encode($webPushResult, JSON_UNESCAPED_UNICODE));

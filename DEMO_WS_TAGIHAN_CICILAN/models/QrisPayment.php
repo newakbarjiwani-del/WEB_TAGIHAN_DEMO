@@ -123,7 +123,7 @@ class QrisPayment
 
         $description = (string) ($meta['description'] ?? (
             empty($normalized)
-                ? ('Top up VA ' . ($meta['namacust'] ?? ''))
+                ? ('Top up saldo ' . ($meta['namacust'] ?? ''))
                 : ('Pembayaran tagihan ' . ($meta['namacust'] ?? ''))
         ));
         if (empty($normalized) && stripos($description, 'top') === false) {
@@ -237,7 +237,7 @@ class QrisPayment
         $transactionId = (string) ($qris['transaction_id'] ?? '');
         $description = (string) ($meta['description'] ?? (
             empty($normalized)
-                ? ('Top up VA ' . ($meta['namacust'] ?? ''))
+                ? ('Top up saldo ' . ($meta['namacust'] ?? ''))
                 : ('Pembayaran tagihan ' . ($meta['namacust'] ?? ''))
         ));
         if (empty($normalized) && stripos($description, 'top') === false) {
