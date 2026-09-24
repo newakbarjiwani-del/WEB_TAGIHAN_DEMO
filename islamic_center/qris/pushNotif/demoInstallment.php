@@ -50,11 +50,16 @@ $webPushNotifySecret = getenv('WEBPUSH_NOTIFY_SECRET') ?: ($_ENV['WEBPUSH_NOTIFY
 if (! function_exists('di_notify_webpush')) {
     /**
      * Best-effort: kirim Web Push ke browser yang sudah subscribe (tab boleh tertutup).
+     *
+     * @return array{ok:bool,http_code:int,body:?string,error:?string}
      */
-    function di_notify_webpush(string $url, string $secret, array $payload): void
+    function di_notify_webpush(string $url, string $secret, array $payload): array
     {
+        $out = ['ok' => false, 'http_code' => 0, 'body' => null, 'error' => null];
         if ($url === '' || $secret === '') {
-            return;
+            $out['error'] = 'WEBPUSH_NOTIFY_URL / SECRET kosong';
+
+            return $out;
         }
 
         try {
@@ -62,8 +67,9 @@ if (! function_exists('di_notify_webpush')) {
             curl_setopt_array($ch, [
                 CURLOPT_POST => true,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 8,
-                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_TIMEOUT => 12,
+                CURLOPT_CONNECTTIMEOUT => 6,
+                CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json',
                     'Accept: application/json',
@@ -71,10 +77,27 @@ if (! function_exists('di_notify_webpush')) {
                 ],
                 CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ]);
-            curl_exec($ch);
+            $body = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $error = curl_error($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+
+            $out['http_code'] = $httpCode;
+            $out['body'] = is_string($body) ? substr($body, 0, 500) : null;
+            if ($errno) {
+                $out['error'] = $error ?: ('curl '.$errno);
+
+                return $out;
+            }
+            $out['ok'] = ($httpCode >= 200 && $httpCode < 300);
+
+            return $out;
         } catch (\Throwable $e) {
+            $out['error'] = $e->getMessage();
             error_log('demoInstallment webpush: '.$e->getMessage());
+
+            return $out;
         }
     }
 }
@@ -242,6 +265,7 @@ $trxId = isset($transactionId) ? (string) $transactionId : null;
 $tokenRaw = isset($token) ? (string) $token : '';
 $forwardUrl = $forwardBase.$tokenRaw;
 $paidAt = ! empty($responseTimestamp) ? (string) $responseTimestamp : date('Y-m-d H:i:s');
+$webPushResult = null;
 
 $requestSnapshot = [
     'vano' => $vanoVal,
@@ -266,7 +290,7 @@ $markResult = $mark['result'];
 
 // Fase 2: notifikasi Web Push saat baru lunas (tab boleh tertutup)
 if ($markResult === 'newly_paid') {
-    di_notify_webpush($webPushNotifyUrl, $webPushNotifySecret, [
+    $webPushResult = di_notify_webpush($webPushNotifyUrl, $webPushNotifySecret, [
         'secret' => $webPushNotifySecret,
         'vano' => $vanoVal,
         'nocust' => $nocust,
@@ -278,6 +302,8 @@ if ($markResult === 'newly_paid') {
             ? ('Top up Rp '.number_format((float) $amountVal, 0, ',', '.').' sudah masuk. Saldo VA diperbarui.')
             : 'Pembayaran QRIS berhasil. Saldo VA diperbarui.',
     ]);
+    $requestSnapshot['webpush'] = $webPushResult;
+    error_log('demoInstallment webpush result: '.json_encode($webPushResult, JSON_UNESCAPED_UNICODE));
 }
 
 // 2) Forward token ke DEMO_INSTALLMENT
