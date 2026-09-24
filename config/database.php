@@ -63,6 +63,21 @@ return [
             ]) : [],
         ],
 
+        'tagihan' => [
+            'driver' => 'mysql',
+            'host' => env('TAGIHAN_DB_HOST', '103.23.103.36'),
+            'port' => env('TAGIHAN_DB_PORT', '3306'),
+            'database' => env('TAGIHAN_DB_DATABASE', 'demo_smartpayment_installment'),
+            'username' => env('TAGIHAN_DB_USERNAME', 'root'),
+            'password' => env('TAGIHAN_DB_PASSWORD', 'Smartpay1ct'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),

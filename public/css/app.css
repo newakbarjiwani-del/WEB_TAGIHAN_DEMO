@@ -884,6 +884,12 @@ html.dark .qris-result-amount{color:var(--accent)}
 .qris-result-frame img{
   display:block;width:220px;height:220px;max-width:100%;
 }
+.qris-result-actions{
+  margin:0 0 .85rem;
+}
+.qris-result-actions .ui-btn{
+  gap:8px;
+}
 .qris-result-meta{
   display:grid;gap:0;border:1px solid var(--border2);border-radius:var(--radius);
   overflow:hidden;background:var(--surface);margin:0 0 .75rem;

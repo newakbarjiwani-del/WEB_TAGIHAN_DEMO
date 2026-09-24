@@ -985,9 +985,23 @@ const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 const brandIconUrl = @json(asset(config('brand.icon_192')));
+const pushSubscribeUrl = @json(route('push.subscribe'));
+const pushVapidUrl = @json(route('push.vapid'));
+const pushNocust = @json($result['data']['no_cust'] ?? ($result['data']['num2nd'] ?? ''));
+const pushVano = @json($result['data']['va_number'] ?? '');
 let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
 let paymentWatchTimer = null;
 let paymentWatchStopAt = 0;
+let pushSubscribeInFlight = false;
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
 
 async function ensureNotifyPermission() {
   if (!('Notification' in window)) return false;
@@ -998,6 +1012,48 @@ async function ensureNotifyPermission() {
     return p === 'granted';
   } catch (e) {
     return false;
+  }
+}
+
+/** Fase 2: simpan PushSubscription agar notif jalan meski tab tertutup */
+async function ensureWebPushSubscription() {
+  if (pushSubscribeInFlight) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  const ok = await ensureNotifyPermission();
+  if (!ok) return false;
+  pushSubscribeInFlight = true;
+  try {
+    const vapidRes = await fetch(pushVapidUrl, { headers: { Accept: 'application/json' } });
+    const vapidJson = await vapidRes.json().catch(() => ({}));
+    if (!vapidRes.ok || !vapidJson.publicKey) return false;
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidJson.publicKey),
+      });
+    }
+    const body = sub.toJSON();
+    body.nocust = pushNocust || (siswaBayar && siswaBayar.no_cust) || '';
+    body.vano = pushVano || (siswaBayar && (siswaBayar.va_number || siswaBayar.vano)) || '';
+    await fetch(pushSubscribeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    return true;
+  } catch (e) {
+    console.warn('webpush subscribe', e);
+    return false;
+  } finally {
+    pushSubscribeInFlight = false;
   }
 }
 
@@ -1057,6 +1113,7 @@ function startPaymentWatch(opts) {
   }
 
   ensureNotifyPermission();
+  ensureWebPushSubscription();
 
   const tick = async () => {
     if (checking) return;
@@ -1128,9 +1185,7 @@ function startPaymentWatch(opts) {
 
 @if(isset($result) && !empty($result['status']))
 document.addEventListener('DOMContentLoaded', function () {
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(function () { ensureNotifyPermission(); }, 1200);
-  }
+  setTimeout(function () { ensureWebPushSubscription(); }, 1500);
 });
 @endif
 
@@ -1830,11 +1885,14 @@ async function prosesGenerateQris(payload, total, btn) {
 
   if (ok) {
     const qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=' + encodeURIComponent(rawQr);
+    const qrImgHd = 'https://api.qrserver.com/v1/create-qr-code/?size=512x512&margin=12&data=' + encodeURIComponent(rawQr);
     const exp = d.expiredTime || d.expired_time || '-';
     const trx = trxId || qrisId || '-';
     const status = String(d.status || 'pending');
     const head = document.querySelector('#paymentModal .modal-head h3');
     if (head) head.textContent = 'QRIS Top up';
+    window.__qrisDownloadUrl = qrImgHd;
+    window.__qrisDownloadId = String(trx).replace(/[^\w\-]+/g, '_').slice(0, 40) || String(Date.now());
 
     document.getElementById('paymentBody').innerHTML = `
       <div class="qris-result">
@@ -1844,22 +1902,29 @@ async function prosesGenerateQris(payload, total, btn) {
         </div>
         <div class="qris-result-frame">
           <div class="qris-result-frame-inner">
-            <img src="${qrImg}" alt="Kode QRIS" width="240" height="240">
+            <img id="qrisResultImg" src="${qrImg}" alt="Kode QRIS" width="240" height="240" crossorigin="anonymous">
           </div>
+        </div>
+        <div class="qris-result-actions">
+          <button type="button" class="ui-btn ui-btn-secondary ui-btn-block" id="btnDownloadQris" onclick="downloadQrisImage()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Unduh QRIS
+          </button>
         </div>
         <div class="qris-result-meta">
           <div class="qris-result-row"><span>Berlaku sampai</span><b>${esc(exp)}</b></div>
           <div class="qris-result-row"><span>ID transaksi</span><b>${esc(String(trx))}</b></div>
           <div class="qris-result-row"><span>Status</span><b><span class="qris-badge qris-badge-pending">${esc(status)}</span></b></div>
         </div>
-        <p class="qris-result-help">Scan QR dengan aplikasi bank atau e-wallet. Biarkan halaman ini terbuka — notifikasi muncul otomatis setelah pembayaran berhasil.</p>
+        <p class="qris-result-help">Scan QR dengan aplikasi bank atau e-wallet, atau unduh gambar QRIS lalu buka di HP. Biarkan halaman ini terbuka — notifikasi muncul otomatis setelah pembayaran berhasil.</p>
       </div>`;
 
     document.getElementById('paymentFoot').innerHTML = `
       <div class="pay-actions" id="payActions">
+        <button type="button" class="ui-btn ui-btn-secondary" id="btnDownloadQrisFoot" onclick="downloadQrisImage()" style="flex:1">Unduh QRIS</button>
         <button type="button" class="btn-ghost" onclick="closePaymentModal()" style="flex:1">Tutup</button>
       </div>`;
-    notifyOk('QRIS siap', 'Silakan scan. Notifikasi akan muncul setelah bayar berhasil.');
+    notifyOk('QRIS siap', 'Silakan scan atau unduh QRIS. Notifikasi muncul setelah bayar berhasil.');
     startPaymentWatch({
       type: 'qris',
       qrisId,
@@ -1873,6 +1938,68 @@ async function prosesGenerateQris(payload, total, btn) {
       btn.disabled = false;
       btn.textContent = 'Buat QRIS';
     }
+  }
+}
+
+async function downloadQrisImage() {
+  const url = window.__qrisDownloadUrl
+    || document.getElementById('qrisResultImg')?.getAttribute('src')
+    || '';
+  if (!url) {
+    notifyWarn('Belum siap', 'Gambar QRIS belum tersedia.');
+    return;
+  }
+  const buttons = [
+    document.getElementById('btnDownloadQris'),
+    document.getElementById('btnDownloadQrisFoot'),
+  ].filter(Boolean);
+  const prev = buttons.map((b) => b.innerHTML);
+  buttons.forEach((b) => {
+    b.disabled = true;
+    b.textContent = 'Mengunduh...';
+  });
+  const filename = 'qris-topup-' + (window.__qrisDownloadId || Date.now()) + '.png';
+  try {
+    const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+    notifyOk('Tersimpan', 'Gambar QRIS berhasil diunduh.');
+  } catch (err) {
+    try {
+      const img = document.getElementById('qrisResultImg');
+      if (!img) throw err;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || 512;
+      canvas.height = img.naturalHeight || 512;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      notifyOk('Tersimpan', 'Gambar QRIS berhasil diunduh.');
+    } catch (err2) {
+      window.open(url, '_blank', 'noopener');
+      notifyWarn('Buka di tab baru', 'Simpan gambar secara manual dari tab yang terbuka.');
+    }
+  } finally {
+    buttons.forEach((b, i) => {
+      b.disabled = false;
+      b.innerHTML = prev[i];
+    });
   }
 }
 

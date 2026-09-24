@@ -130,6 +130,15 @@ Route::post('/multi-akun/tambah', [MultiAccountController::class, 'tambah'])->na
 Route::post('/multi-akun/switch', [MultiAccountController::class, 'switch'])->name('multi-akun.switch');
 Route::post('/multi-akun/hapus', [MultiAccountController::class, 'hapus'])->name('multi-akun.hapus');
 
+Route::get('/push/vapid-public-key', [\App\Http\Controllers\WebPushController::class, 'vapidPublicKey'])
+    ->name('push.vapid');
+Route::post('/push/subscribe', [\App\Http\Controllers\WebPushController::class, 'subscribe'])
+    ->name('push.subscribe');
+Route::post('/push/unsubscribe', [\App\Http\Controllers\WebPushController::class, 'unsubscribe'])
+    ->name('push.unsubscribe');
+Route::post('/push/notify-paid', [\App\Http\Controllers\WebPushController::class, 'notifyPaid'])
+    ->name('push.notify-paid');
+
 Route::get('/tagihan/view', [TagihanController::class, 'tagihanView'])->name('tagihan.view');
 
 Route::post('/pembayaran/buat-va', [TagihanController::class, 'buatVA'])->name('pembayaran.buatva');

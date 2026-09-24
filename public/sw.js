@@ -1,5 +1,5 @@
 /* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v3';
+const CACHE_VERSION = 'tagihan-pwa-v4';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -77,6 +77,27 @@ self.addEventListener('fetch', (event) => {
       return cached || fetchPromise;
     })
   );
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { body: event.data ? event.data.text() : 'Pembayaran berhasil' };
+  }
+
+  const title = payload.title || 'Pembayaran berhasil';
+  const options = {
+    body: payload.body || 'Transaksi QRIS berhasil diproses.',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: payload.badge || '/icons/icon-192.png',
+    tag: payload.tag || 'qris-paid',
+    renotify: true,
+    data: Object.assign({ url: '/' }, payload.data || {}, { url: payload.url || (payload.data && payload.data.url) || '/' }),
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
