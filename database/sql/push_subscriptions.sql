@@ -9,7 +9,7 @@ CREATE TABLE `push_subscriptions` (
   `endpoint` text NOT NULL,
   `public_key` varchar(255) DEFAULT NULL,
   `auth_token` varchar(255) DEFAULT NULL,
-  `content_encoding` varchar(32) NOT NULL DEFAULT 'aesgcm',
+  `content_encoding` varchar(32) NOT NULL DEFAULT 'aes128gcm',
   `nocust` varchar(50) DEFAULT NULL,
   `vano` varchar(80) DEFAULT NULL,
   `user_agent` varchar(255) DEFAULT NULL,

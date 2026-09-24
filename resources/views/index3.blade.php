@@ -1036,6 +1036,7 @@ async function ensureWebPushSubscription() {
       });
     }
     const body = sub.toJSON();
+    body.contentEncoding = 'aes128gcm';
     body.nocust = pushNocust || (siswaBayar && siswaBayar.no_cust) || '';
     body.vano = pushVano || (siswaBayar && (siswaBayar.va_number || siswaBayar.vano)) || '';
     await fetch(pushSubscribeUrl, {

@@ -35,7 +35,10 @@ class WebPushService
         $keys = $payload['keys'] ?? [];
         $p256dh = (string) ($keys['p256dh'] ?? $payload['public_key'] ?? '');
         $auth = (string) ($keys['auth'] ?? $payload['auth_token'] ?? '');
-        $encoding = (string) ($payload['contentEncoding'] ?? $payload['content_encoding'] ?? 'aesgcm');
+        $encoding = (string) ($payload['contentEncoding'] ?? $payload['content_encoding'] ?? 'aes128gcm');
+        if (! in_array($encoding, ['aesgcm', 'aes128gcm'], true)) {
+            $encoding = 'aes128gcm';
+        }
         $hash = hash('sha256', $endpoint);
 
         return PushSubscription::updateOrCreate(
@@ -44,7 +47,7 @@ class WebPushService
                 'endpoint' => $endpoint,
                 'public_key' => $p256dh !== '' ? $p256dh : null,
                 'auth_token' => $auth !== '' ? $auth : null,
-                'content_encoding' => $encoding !== '' ? $encoding : 'aesgcm',
+                'content_encoding' => $encoding,
                 'nocust' => $nocust !== null && $nocust !== '' ? $nocust : null,
                 'vano' => $vano !== null && $vano !== '' ? $vano : null,
                 'user_agent' => $userAgent ? substr($userAgent, 0, 255) : null,
@@ -98,7 +101,7 @@ class WebPushService
 
         $subs = $query->get();
         if ($subs->isEmpty()) {
-            return ['sent' => 0, 'failed' => 0, 'skipped' => 0];
+            return ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'matched' => 0];
         }
 
         $amount = isset($data['amount']) ? (float) $data['amount'] : null;
@@ -128,36 +131,65 @@ class WebPushService
             ],
         ], JSON_UNESCAPED_UNICODE);
 
-        $webPush = new WebPush([
-            'VAPID' => [
-                'subject' => (string) config('services.webpush.subject', 'mailto:admin@example.com'),
-                'publicKey' => $this->publicKey(),
-                'privateKey' => (string) config('services.webpush.private_key'),
-            ],
-        ]);
+        try {
+            $webPush = new WebPush([
+                'VAPID' => [
+                    'subject' => (string) config('services.webpush.subject', 'mailto:admin@example.com'),
+                    'publicKey' => $this->publicKey(),
+                    'privateKey' => (string) config('services.webpush.private_key'),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('webpush init failed', ['error' => $e->getMessage()]);
+
+            return [
+                'sent' => 0,
+                'failed' => $subs->count(),
+                'skipped' => 0,
+                'matched' => $subs->count(),
+                'error' => $e->getMessage(),
+            ];
+        }
 
         $sent = 0;
         $failed = 0;
+        $errors = [];
 
         foreach ($subs as $sub) {
             if (! $sub->endpoint || ! $sub->public_key || ! $sub->auth_token) {
                 $failed++;
+                $errors[] = 'sub#'.$sub->id.' incomplete keys';
                 continue;
             }
 
-            try {
-                $subscription = Subscription::create([
-                    'endpoint' => $sub->endpoint,
-                    'publicKey' => $sub->public_key,
-                    'authToken' => $sub->auth_token,
-                    'contentEncoding' => $sub->content_encoding ?: 'aesgcm',
-                ]);
-                $webPush->queueNotification($subscription, $payload);
-            } catch (\Throwable $e) {
-                Log::warning('webpush queue failed', [
-                    'id' => $sub->id,
-                    'error' => $e->getMessage(),
-                ]);
+            // Chrome modern = aes128gcm; coba encoding tersimpan, fallback aes128gcm
+            $encodings = array_values(array_unique(array_filter([
+                $sub->content_encoding ?: null,
+                'aes128gcm',
+                'aesgcm',
+            ])));
+
+            $queued = false;
+            foreach ($encodings as $enc) {
+                try {
+                    $subscription = Subscription::create([
+                        'endpoint' => $sub->endpoint,
+                        'publicKey' => $sub->public_key,
+                        'authToken' => $sub->auth_token,
+                        'contentEncoding' => $enc,
+                    ]);
+                    $webPush->queueNotification($subscription, $payload);
+                    if ($enc !== $sub->content_encoding) {
+                        $sub->content_encoding = $enc;
+                        $sub->save();
+                    }
+                    $queued = true;
+                    break;
+                } catch (\Throwable $e) {
+                    $errors[] = 'sub#'.$sub->id.' enc='.$enc.': '.$e->getMessage();
+                }
+            }
+            if (! $queued) {
                 $failed++;
             }
         }
@@ -170,10 +202,10 @@ class WebPushService
             } else {
                 $failed++;
                 $code = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
-                // Gone / expired subscription
                 if (in_array($code, [404, 410], true)) {
                     PushSubscription::where('endpoint', $report->getEndpoint())->delete();
                 }
+                $errors[] = ($report->getReason() ?: 'send fail').' code='.$code;
                 Log::info('webpush send failed', [
                     'endpoint' => $report->getEndpoint(),
                     'reason' => $report->getReason(),
@@ -182,6 +214,12 @@ class WebPushService
             }
         }
 
-        return compact('sent', 'failed') + ['skipped' => 0];
+        return [
+            'sent' => $sent,
+            'failed' => $failed,
+            'skipped' => 0,
+            'matched' => $subs->count(),
+            'errors' => array_slice($errors, 0, 5),
+        ];
     }
 }

@@ -1,5 +1,5 @@
 /* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v4';
+const CACHE_VERSION = 'tagihan-pwa-v5';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -82,9 +82,15 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let payload = {};
   try {
-    payload = event.data ? event.data.json() : {};
+    if (event.data) {
+      try {
+        payload = event.data.json();
+      } catch (e1) {
+        payload = { body: event.data.text() };
+      }
+    }
   } catch (e) {
-    payload = { body: event.data ? event.data.text() : 'Pembayaran berhasil' };
+    payload = {};
   }
 
   const title = payload.title || 'Pembayaran berhasil';
@@ -94,10 +100,22 @@ self.addEventListener('push', (event) => {
     badge: payload.badge || '/icons/icon-192.png',
     tag: payload.tag || 'qris-paid',
     renotify: true,
-    data: Object.assign({ url: '/' }, payload.data || {}, { url: payload.url || (payload.data && payload.data.url) || '/' }),
+    requireInteraction: false,
+    data: Object.assign(
+      { url: '/' },
+      payload.data || {},
+      { url: payload.url || (payload.data && payload.data.url) || '/' }
+    ),
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() => {
+      return self.registration.showNotification(title, {
+        body: options.body,
+        tag: options.tag,
+      });
+    })
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {

@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('endpoint');
             $table->string('public_key', 255)->nullable();
             $table->string('auth_token', 255)->nullable();
-            $table->string('content_encoding', 32)->default('aesgcm');
+            $table->string('content_encoding', 32)->default('aes128gcm');
             $table->string('nocust', 50)->nullable()->index();
             $table->string('vano', 80)->nullable()->index();
             $table->string('user_agent', 255)->nullable();
