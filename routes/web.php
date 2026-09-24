@@ -119,6 +119,8 @@ Route::post('/cek-tagihan', function (Request $request) {
 
 Route::post('/generate-va', [TagihanController::class, 'buatVA'])->name('generate-va');
 Route::post('/generate-qris', [TagihanController::class, 'buatQRIS'])->name('generate-qris');
+Route::match(['get', 'post'], '/cek-status-pembayaran', [TagihanController::class, 'cekStatusPembayaran'])
+    ->name('cek-status-pembayaran');
 
 Route::post('/dua', [TagihanController::class, 'cek'])->name('tagihan.cek');
 

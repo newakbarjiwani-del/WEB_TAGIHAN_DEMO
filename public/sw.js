@@ -1,5 +1,5 @@
 /* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v2';
+const CACHE_VERSION = 'tagihan-pwa-v3';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -30,7 +30,9 @@ function isApiOrForm(request, url) {
   if (request.method !== 'GET') return true;
   if (url.pathname.startsWith('/multi-akun')) return true;
   if (url.pathname.startsWith('/generate-va')) return true;
+  if (url.pathname.startsWith('/generate-qris')) return true;
   if (url.pathname.startsWith('/cek-tagihan')) return true;
+  if (url.pathname.startsWith('/cek-status-pembayaran')) return true;
   if (url.pathname.startsWith('/pembayaran')) return true;
   if (url.pathname.startsWith('/list-tahun-akademik')) return true;
   return false;
@@ -73,6 +75,27 @@ self.addEventListener('fetch', (event) => {
         .catch(() => cached);
 
       return cached || fetchPromise;
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification && event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url && 'focus' in client) {
+          client.focus();
+          if (client.navigate) {
+            try { client.navigate(target); } catch (e) {}
+          }
+          return;
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(target);
+      }
     })
   );
 });

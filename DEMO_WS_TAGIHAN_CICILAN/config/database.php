@@ -3,7 +3,7 @@ class Database {
     private $pdo;
 
     public function __construct() {
-        $host = "10.99.23.18";
+        $host = "103.23.103.36";
         $port = "3306";
         $dbname = "demo_smartpayment_installment"; 
         $username = "root";

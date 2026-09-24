@@ -86,6 +86,7 @@ public function cek2()
         $custid = $input['custid'] ?? null;
         $nocust = $input['nocust'] ?? null;
         $namacust = $input['namacust'] ?? null;
+        $amount = (int) ($input['amount'] ?? $input['total'] ?? 0);
 
         if ($custid === null || $nocust === null || $namacust === null) {
             jsonResponse(false, 'Data tidak lengkap untuk membuat QRIS');
@@ -96,11 +97,11 @@ public function cek2()
         if (!empty($input['items']) && is_array($input['items'])) {
             foreach ($input['items'] as $item) {
                 $aa = (int) ($item['AA'] ?? $item['aa'] ?? 0);
-                $amount = (int) ($item['amount'] ?? 0);
-                if ($aa > 0 && $amount > 0) {
+                $amt = (int) ($item['amount'] ?? 0);
+                if ($aa > 0 && $amt > 0) {
                     $items[] = [
                         'aa' => $aa,
-                        'amount' => $amount,
+                        'amount' => $amt,
                         'is_cicil' => !empty($item['is_cicil']) ? 1 : 0,
                         'sisa_sebelum' => $item['sisa_sebelum'] ?? null,
                         'nama_tagihan' => $item['nama_tagihan'] ?? '',
@@ -108,24 +109,14 @@ public function cek2()
                     ];
                 }
             }
-        } else {
-            $arrayTagihan = $input['array_tagihan'] ?? $input['arrayTagihan'] ?? '';
-            $ids = array_filter(array_map('intval', explode(',', (string) $arrayTagihan)));
-            $billamRaw = $input['billam'] ?? $input['total'] ?? '';
-            $amounts = is_array($billamRaw)
-                ? array_map('intval', $billamRaw)
-                : array_map('intval', explode(',', (string) $billamRaw));
-            foreach ($ids as $i => $aa) {
-                $amount = (int) ($amounts[$i] ?? 0);
-                if ($aa > 0 && $amount > 0) {
-                    $items[] = ['aa' => $aa, 'amount' => $amount, 'is_cicil' => 0];
-                }
-            }
         }
 
+        // Default: top-up VA (nominal saja, tanpa pilih tagihan)
         if (empty($items)) {
-            jsonResponse(false, 'Tagihan yang dipilih tidak valid');
-            return;
+            if ($amount < 1000) {
+                jsonResponse(false, 'Nominal top up minimal 1000');
+                return;
+            }
         }
 
         try {
@@ -134,9 +125,10 @@ public function cek2()
                 'custid' => $custid,
                 'nocust' => $nocust,
                 'namacust' => $namacust,
-                'description' => $input['description'] ?? ('Pembayaran ' . $namacust),
+                'amount' => $amount,
+                'description' => $input['description'] ?? ('Top up VA ' . $namacust),
             ], $items);
-            jsonResponse(true, 'QRIS berhasil dibuat', $result);
+            jsonResponse(true, empty($items) ? 'QRIS top up berhasil dibuat' : 'QRIS berhasil dibuat', $result);
         } catch (Exception $e) {
             jsonResponse(false, $e->getMessage());
         }
@@ -166,15 +158,71 @@ public function cek2()
             }
         }
 
+        $amount = (int) ($input['amount'] ?? $input['total'] ?? ($qris['amount'] ?? 0));
+        $description = (string) ($input['description'] ?? ('Top up VA ' . $namacust));
+        if (empty($items) && stripos($description, 'top') === false) {
+            $description = 'TOPUP|'.$description;
+        }
+
         try {
             $model = new QrisPayment();
             $saved = $model->saveGenerated([
                 'custid' => $custid,
                 'nocust' => $nocust,
                 'namacust' => $namacust,
-                'description' => $input['description'] ?? ('Pembayaran ' . $namacust),
+                'amount' => $amount,
+                'description' => $description,
             ], $items, $qris);
             jsonResponse(true, 'QRIS tersimpan', $saved);
+        } catch (Exception $e) {
+            jsonResponse(false, $e->getMessage());
+        }
+    }
+
+    /**
+     * Polling status QRIS — GET/POST ?path=qris-status&qris_id=...&transaction_id=...&vano=...
+     */
+    public function statusQRIS()
+    {
+        $input = $this->readJsonInput();
+        $qrisId = trim((string) ($input['qris_id'] ?? $_GET['qris_id'] ?? ''));
+        $trxId = trim((string) ($input['transaction_id'] ?? $_GET['transaction_id'] ?? ''));
+        $vano = trim((string) ($input['vano'] ?? $_GET['vano'] ?? ''));
+
+        if ($qrisId === '' && $trxId === '' && $vano === '') {
+            jsonResponse(false, 'qris_id / transaction_id / vano wajib');
+            return;
+        }
+
+        try {
+            $model = new QrisPayment();
+            $row = $model->findStatus([
+                'qris_id' => $qrisId,
+                'transaction_id' => $trxId,
+                'vano' => $vano,
+            ]);
+            if (!$row) {
+                jsonResponse(false, 'Transaksi QRIS tidak ditemukan', [
+                    'paid' => false,
+                    'qris_id' => $qrisId,
+                    'transaction_id' => $trxId,
+                    'vano' => $vano,
+                ]);
+                return;
+            }
+
+            $paid = ((int) ($row['paid_flag'] ?? 0) === 1)
+                || strtolower((string) ($row['status'] ?? '')) === 'paid';
+
+            jsonResponse(true, $paid ? 'Pembayaran berhasil' : 'Menunggu pembayaran', [
+                'paid' => $paid,
+                'status' => $row['status'] ?? 'pending',
+                'paid_flag' => (int) ($row['paid_flag'] ?? 0),
+                'qris_id' => $row['qris_id'] ?? $qrisId,
+                'transaction_id' => $row['transaction_id'] ?? $trxId,
+                'amount' => isset($row['amount']) ? (float) $row['amount'] : null,
+                'vano' => $row['vano'] ?? $vano,
+            ]);
         } catch (Exception $e) {
             jsonResponse(false, $e->getMessage());
         }

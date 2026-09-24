@@ -9,7 +9,8 @@
  * Alur:
  * 1. Cari transaksi di mst_qris (qris_id / vano pending)
  * 2. Tandai paid
- * 3. Insert scctva dari mst_qris_item (sama pola generate-VA) agar tagihan terlunasi lewat jalur existing
+ * 3. Jika top-up (tanpa item / deskripsi TOPUP) → selesai (saldo VA via jalur bank)
+ *    Jika ada item tagihan → insert scctva (legacy)
  */
 
 if (! function_exists('tc_push_response')) {
@@ -346,17 +347,26 @@ $paidAmount = is_numeric($amount ?? null)
     : (float) ($billing['amount'] ?? 0);
 
 $items = tc_load_items($dbhandle, $paymentId);
+$desc = (string) ($billing['description'] ?? '');
+$isTopup = empty($items) || stripos($desc, 'topup') !== false || stripos($desc, 'top up') !== false;
 $scctvaOk = false;
 $newlyPaid = false;
+$scctvaStatus = 'skipped';
 
 if (! $alreadyPaid) {
     mysqli_begin_transaction($dbhandle);
     try {
         $newlyPaid = tc_mark_paid($dbhandle, $paymentId, $paidAmount, $paymentTime);
         if ($newlyPaid) {
-            $scctvaOk = tc_insert_scctva($dbhandle, $billing, $items);
-            if (! $scctvaOk) {
-                error_log('tagihanCicilan: scctva insert gagal untuk mst_qris id='.$paymentId);
+            if ($isTopup) {
+                // Top-up VA: cukup tandai paid. Kredit saldo VA lewat jalur bank/vano.
+                $scctvaStatus = 'skipped_topup';
+            } else {
+                $scctvaOk = tc_insert_scctva($dbhandle, $billing, $items);
+                $scctvaStatus = $scctvaOk ? 'inserted' : 'failed';
+                if (! $scctvaOk) {
+                    error_log('tagihanCicilan: scctva insert gagal untuk mst_qris id='.$paymentId);
+                }
             }
         }
         mysqli_commit($dbhandle);
@@ -392,7 +402,9 @@ if (! $alreadyPaid) {
 }
 
 $processed = $alreadyPaid ? 'already_processed' : ($newlyPaid ? 'new_processing' : 'no_change');
-$scctvaStatus = $alreadyPaid ? 'skipped' : ($scctvaOk ? 'inserted' : 'failed');
+if ($alreadyPaid) {
+    $scctvaStatus = 'skipped';
+}
 $payloadOk = [
     'responseCode' => '00',
     'responseMessage' => 'TRANSACTION SUCCESS',
@@ -407,7 +419,7 @@ $payloadOk = [
     'items' => count($items),
     'scctva' => $scctvaStatus,
     'processed' => $processed,
-    'paymentType' => 'tagihan_cicilan',
+    'paymentType' => $isTopup ? 'topup' : 'tagihan_cicilan',
 ];
 
 tc_write_push_log($dbhandle, [

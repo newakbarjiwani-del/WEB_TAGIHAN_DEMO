@@ -38,6 +38,11 @@ switch ($path) {
         $controller->saveQRIS();
         break;
 
+    case 'qris-status':
+        $controller = new TagihanController();
+        $controller->statusQRIS();
+        break;
+
     case 'list-tahun-aka':
         $controller = new TagihanController();
         $controller->getTahunAkademik();

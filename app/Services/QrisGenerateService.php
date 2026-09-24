@@ -8,13 +8,12 @@ use RuntimeException;
 class QrisGenerateService
 {
     /**
-     * Panggil server Lazizmu QRIS (JWT) — pola sama seperti script generate sample (cURL POST + token query).
+     * Generate QRIS top-up (nominal saja) atau legacy bill items.
      *
-     * @param  array  $meta  custid, nocust, namacust, description
-     * @param  array  $items [{aa, amount, is_cicil, ...}]
-     * @return array
+     * @param  array  $meta  custid, nocust, namacust, description, amount (untuk topup)
+     * @param  array  $items  opsional; kosong = topup pakai meta.amount
      */
-    public function generate(array $meta, array $items): array
+    public function generate(array $meta, array $items = []): array
     {
         $cfg = config('brand.qris', []);
         $serverUrl = (string) ($cfg['server_url'] ?? '');
@@ -46,8 +45,13 @@ class QrisGenerateService
             $total += $amount;
         }
 
-        if ($total <= 0 || empty($normalized)) {
-            throw new RuntimeException('Item tagihan QRIS tidak valid');
+        // Mode top-up: tanpa item tagihan, nominal dari meta.amount
+        if (empty($normalized)) {
+            $total = (int) ($meta['amount'] ?? 0);
+        }
+
+        if ($total <= 0) {
+            throw new RuntimeException('Nominal QRIS tidak valid');
         }
 
         $nocust = preg_replace('/\s+/', '', (string) ($meta['nocust'] ?? ''));
@@ -140,6 +144,7 @@ class QrisGenerateService
             'responseMessage' => $body['responseMessage'] ?? 'Success',
             'account_no' => $accountNo,
             'mitra_customer_id' => $mitraId,
+            'payment_type' => empty($normalized) ? 'topup' : 'bill',
             'items' => $normalized,
             'serverResponse' => $body,
             'request_payload' => $jwtPayload,

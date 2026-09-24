@@ -1,25 +1,27 @@
 <?php
 
 /**
- * Koneksi DB tagihan cicilan (WEB_TAGIHAN_DEMO / DEMO_WS).
- * Samakan host/db dengan DEMO_WS_TAGIHAN_CICILAN/config/database.php.
- *
- * Dipakai oleh qris/pushNotif/tagihanCicilan.php saat callback bayar QRIS.
+ * DB WEB_TAGIHAN_DEMO / DEMO_WS — log_qris_push & mst_qris.
+ * Host publik: 103.23.103.36 (demo_smartpayment_installment)
  */
-$host = '10.99.23.26';
+$host = '103.23.103.36';
 $port = 3306;
-$base = 'sidoarjo_raudhatul_jannah';
+$base = 'demo_smartpayment_installment';
 $user = 'root';
 $pawd = 'Smartpay1ct';
 
 mysqli_report(MYSQLI_REPORT_OFF);
-$dbhandle = @mysqli_connect($host, $user, $pawd, $base, $port);
-if ($dbhandle) {
-    mysqli_set_charset($dbhandle, 'utf8mb4');
+$dbhandle = null;
+$mysqli = mysqli_init();
+if ($mysqli) {
+    @$mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 3);
+    if (@$mysqli->real_connect($host, $user, $pawd, $base, $port)) {
+        $mysqli->set_charset('utf8mb4');
+        $dbhandle = $mysqli;
+    }
 }
 
-/** Prefix vano 6 digit untuk routing pushNotif.php (harus sama dengan generator). */
 $tagihanCicilanQrisConfig = [
-    'vano_prefix' => '751000', // vano QRIS = 751000 + nocust
+    'vano_prefix' => '751000',
     'nova_bank_prefix' => '751000',
 ];

@@ -530,88 +530,37 @@ class TagihanController extends Controller
             'custid' => 'required',
             'nocust' => 'required|string',
             'namacust' => 'required|string',
+            'amount' => 'required|integer|min:1000',
         ]);
 
-        $pairs = [];
-        $items = $request->input('items');
-        if (is_array($items) && count($items)) {
-            foreach ($items as $item) {
-                $aa = (int) ($item['AA'] ?? $item['aa'] ?? 0);
-                $amount = (int) ($item['amount'] ?? $item['billam'] ?? 0);
-                if ($aa > 0 && $amount > 0) {
-                    $pairs[] = [
-                        'AA' => $aa,
-                        'aa' => $aa,
-                        'amount' => $amount,
-                        'is_cicil' => !empty($item['is_cicil']) ? 1 : 0,
-                        'sisa_sebelum' => $item['sisa_sebelum'] ?? null,
-                        'nama_tagihan' => $item['nama_tagihan'] ?? '',
-                        'billcd' => $item['billcd'] ?? $item['BILLCD'] ?? '',
-                    ];
-                }
-            }
-        } else {
-            $arrayTagihan = $request->input('array_tagihan', $request->input('arrayTagihan', ''));
-            if (is_array($arrayTagihan)) {
-                $arrayTagihan = implode(',', $arrayTagihan);
-            }
-            $ids = collect(explode(',', (string) $arrayTagihan))
-                ->map(fn ($id) => (int) trim($id))
-                ->filter(fn ($id) => $id > 0)
-                ->values();
-
-            $billamRaw = $request->input('billam', $request->input('total', ''));
-            if (is_array($billamRaw)) {
-                $amounts = array_map('intval', $billamRaw);
-            } else {
-                $amounts = collect(explode(',', (string) $billamRaw))
-                    ->map(fn ($n) => (int) trim($n))
-                    ->values()
-                    ->all();
-            }
-
-            foreach ($ids as $i => $aa) {
-                $amount = (int) ($amounts[$i] ?? 0);
-                if ($aa > 0 && $amount > 0) {
-                    $pairs[] = ['AA' => $aa, 'aa' => $aa, 'amount' => $amount, 'is_cicil' => 0];
-                }
-            }
-        }
-
-        if (empty($pairs)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Tagihan yang dipilih tidak valid',
-            ], 422);
-        }
-
-        $idsCsv = collect($pairs)->pluck('aa')->implode(',');
-        $billamCsv = collect($pairs)->pluck('amount')->implode(',');
-        $total = (int) collect($pairs)->sum('amount');
+        $amount = (int) $request->input('amount');
         $nocust = self::normalizeVa($request->nocust);
+        $description = (string) $request->input(
+            'description',
+            'Top up VA '.$request->namacust
+        );
 
         $payload = [
             'custid' => $request->custid,
             'nocust' => $nocust,
             'namacust' => $request->namacust,
-            'array_tagihan' => $idsCsv,
-            'billam' => $billamCsv,
-            'total' => $total,
-            'description' => $request->input('description', 'Pembayaran ' . $request->namacust),
-            'items' => $pairs,
+            'amount' => $amount,
+            'total' => $amount,
+            'description' => $description,
+            'payment_type' => 'topup',
+            'items' => [],
         ];
 
         try {
-            // 1) Generate langsung ke Lazizmu (sumber lambat utama = jaringan ke server QRIS)
             $svc = new QrisGenerateService();
             $data = $svc->generate([
                 'custid' => $request->custid,
                 'nocust' => $nocust,
                 'namacust' => $request->namacust,
-                'description' => $payload['description'],
-            ], $pairs);
+                'description' => $description,
+                'amount' => $amount,
+            ], []);
 
-            // 2) Simpan ke WS hanya best-effort, timeout pendek — jangan tahan response ke browser
             try {
                 Http::timeout(3)
                     ->connectTimeout(2)
@@ -627,11 +576,11 @@ class TagihanController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'QRIS berhasil dibuat',
+                'message' => 'QRIS top up berhasil dibuat',
                 'data' => $data,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error generate-qris', [
+            Log::error('Error generate-qris topup', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -640,6 +589,234 @@ class TagihanController extends Controller
                 'status' => false,
                 'message' => $e->getMessage() ?: 'Terjadi kesalahan saat membuat QRIS',
             ], 500);
+        }
+    }
+
+    /**
+     * Polling status pembayaran (QRIS / snapshot tagihan VA).
+     */
+    public function cekStatusPembayaran(Request $request)
+    {
+        $qrisId = trim((string) $request->input('qris_id', ''));
+        $trxId = trim((string) $request->input('transaction_id', ''));
+        $vano = trim((string) $request->input('vano', ''));
+
+        if ($qrisId !== '' || $trxId !== '' || $vano !== '') {
+            // 1) Langsung ke DB tagihan (lebih andal)
+            $direct = $this->qrisStatusFromDb($qrisId, $trxId, $vano);
+            if ($direct !== null) {
+                return response()->json($direct);
+            }
+
+            // 2) Fallback WS
+            try {
+                $response = Http::timeout(12)
+                    ->connectTimeout(4)
+                    ->withoutVerifying()
+                    ->acceptJson()
+                    ->get($this->wsUrl('qris-status'), array_filter([
+                        'qris_id' => $qrisId !== '' ? $qrisId : null,
+                        'transaction_id' => $trxId !== '' ? $trxId : null,
+                        'vano' => $vano !== '' ? $vano : null,
+                    ]));
+
+                $json = $response->json();
+                if (!is_array($json)) {
+                    return response()->json([
+                        'status' => false,
+                        'paid' => false,
+                        'message' => 'Response status tidak valid',
+                    ], 502);
+                }
+
+                $data = is_array($json['data'] ?? null) ? $json['data'] : [];
+                $paid = !empty($data['paid']) || !empty($json['paid']);
+
+                return response()->json([
+                    'status' => (bool) ($json['status'] ?? false),
+                    'paid' => $paid,
+                    'message' => $json['message'] ?? ($paid ? 'Pembayaran berhasil' : 'Menunggu pembayaran'),
+                    'data' => $data,
+                    'type' => 'qris',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('cekStatusPembayaran qris', ['error' => $e->getMessage()]);
+
+                return response()->json([
+                    'status' => false,
+                    'paid' => false,
+                    'message' => 'Gagal cek status QRIS',
+                ], 500);
+            }
+        }
+
+        // Snapshot tagihan untuk deteksi VA lunas (bandingkan di client)
+        $sess = session('tagihan');
+        $noCust = self::normalizeVa($sess['active_no_cust'] ?? $request->input('nocust'));
+        if ($noCust === '') {
+            return response()->json([
+                'status' => false,
+                'paid' => false,
+                'message' => 'Sesi tidak valid',
+            ], 401);
+        }
+
+        $academicYear = $sess['academic_year'] ?? $request->input('tahun_akademik', 'all');
+        $aaList = $request->input('aa', []);
+        if (is_string($aaList)) {
+            $aaList = array_filter(array_map('intval', explode(',', $aaList)));
+        }
+        if (!is_array($aaList)) {
+            $aaList = [];
+        }
+        $aaList = array_values(array_unique(array_map('intval', $aaList)));
+
+        try {
+            $response = Http::timeout(25)
+                ->withoutVerifying()
+                ->acceptJson()
+                ->asJson()
+                ->post($this->wsUrl('cek-tagihan'), [
+                    'va' => $noCust,
+                    'tahun_akademik' => $academicYear,
+                ]);
+
+            $result = $response->json();
+            if (empty($result['status']) || empty($result['data'])) {
+                return response()->json([
+                    'status' => false,
+                    'paid' => false,
+                    'message' => $result['message'] ?? 'Gagal memuat tagihan',
+                ], 502);
+            }
+
+            $data = $result['data'];
+            $tagihan = is_array($data['tagihan'] ?? null) ? $data['tagihan'] : [];
+            $unpaid = 0;
+            $matched = 0;
+            foreach ($tagihan as $item) {
+                $aa = (int) ($item['AA'] ?? $item['aa'] ?? 0);
+                if ($aaList && !in_array($aa, $aaList, true)) {
+                    continue;
+                }
+                $matched++;
+                $sisa = (int) ($item['sisa_tagihan'] ?? $item['SISA'] ?? 0);
+                if ($sisa <= 0 && isset($item['total_tagihan'], $item['sudah_dibayar'])) {
+                    $sisa = max(0, (int) $item['total_tagihan'] - (int) $item['sudah_dibayar']);
+                }
+                $unpaid += max(0, $sisa);
+            }
+
+            return response()->json([
+                'status' => true,
+                'paid' => false,
+                'type' => 'va',
+                'message' => 'Snapshot tagihan',
+                'data' => [
+                    'saldo' => (float) ($data['saldo'] ?? 0),
+                    'unpaid_total' => $unpaid,
+                    'matched' => $matched,
+                    'aa' => $aaList,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('cekStatusPembayaran va', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'status' => false,
+                'paid' => false,
+                'message' => 'Gagal cek status VA',
+            ], 500);
+        }
+    }
+
+    /**
+     * Baca status QRIS langsung dari DB sekolah (services.tagihan_db).
+     *
+     * @return array<string,mixed>|null null jika koneksi/query gagal total
+     */
+    private function qrisStatusFromDb(string $qrisId, string $trxId, string $vano): ?array
+    {
+        $cfg = config('services.tagihan_db');
+        if (empty($cfg['host']) || empty($cfg['database'])) {
+            return null;
+        }
+
+        try {
+            $dsn = sprintf(
+                'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+                $cfg['host'],
+                $cfg['port'] ?? 3306,
+                $cfg['database']
+            );
+            $pdo = new \PDO($dsn, $cfg['username'] ?? '', $cfg['password'] ?? '', [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_TIMEOUT => 4,
+            ]);
+
+            $parts = [];
+            $params = [];
+            if ($qrisId !== '') {
+                $parts[] = 'qris_id = ?';
+                $params[] = $qrisId;
+            }
+            if ($trxId !== '') {
+                $parts[] = 'transaction_id = ?';
+                $params[] = $trxId;
+            }
+            if ($vano !== '') {
+                $parts[] = 'vano = ?';
+                $params[] = $vano;
+            }
+            if (!$parts) {
+                return null;
+            }
+
+            $sql = 'SELECT id, qris_id, transaction_id, vano, amount, status, paid_flag, paid_at
+                    FROM mst_qris WHERE ('.implode(' OR ', $parts).')
+                    ORDER BY id DESC LIMIT 1';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$row) {
+                return [
+                    'status' => false,
+                    'paid' => false,
+                    'message' => 'Transaksi QRIS tidak ditemukan',
+                    'type' => 'qris',
+                    'data' => [
+                        'paid' => false,
+                        'qris_id' => $qrisId,
+                        'transaction_id' => $trxId,
+                        'vano' => $vano,
+                    ],
+                ];
+            }
+
+            $paid = ((int) ($row['paid_flag'] ?? 0) === 1)
+                || strtolower((string) ($row['status'] ?? '')) === 'paid';
+
+            return [
+                'status' => true,
+                'paid' => $paid,
+                'message' => $paid ? 'Pembayaran berhasil' : 'Menunggu pembayaran',
+                'type' => 'qris',
+                'data' => [
+                    'paid' => $paid,
+                    'status' => $row['status'] ?? 'pending',
+                    'paid_flag' => (int) ($row['paid_flag'] ?? 0),
+                    'qris_id' => $row['qris_id'] ?? null,
+                    'transaction_id' => $row['transaction_id'] ?? null,
+                    'amount' => isset($row['amount']) ? (float) $row['amount'] : null,
+                    'vano' => $row['vano'] ?? null,
+                    'paid_at' => $row['paid_at'] ?? null,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            Log::info('qrisStatusFromDb skip', ['error' => $e->getMessage()]);
+
+            return null;
         }
     }
 

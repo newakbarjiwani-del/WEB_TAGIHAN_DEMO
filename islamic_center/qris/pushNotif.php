@@ -4,7 +4,7 @@ date_default_timezone_set('Asia/Bangkok');
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
 ini_set('log_errors', '1');
-ini_set('error_log', 'php_errors.log');
+ini_set('error_log', __DIR__.'/php_errors.log');
 
 class JWT
 {
@@ -123,13 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 if (empty($token)) {
     http_response_code(400);
-    $noTokenResponse = [
+    echo json_encode([
         'responseCode' => '01',
         'responseMessage' => 'Token tidak ditemukan',
         'responseTimestamp' => date('Y-m-d H:i:s'),
-    ];
-
-    echo json_encode($noTokenResponse);
+    ]);
     exit;
 }
 
@@ -154,19 +152,19 @@ try {
         if ($enamDigitVano === '508001') {
             require_once __DIR__.'/../config/connectWalisongo.php';
             require_once __DIR__.'/pushNotif/walisongo.php';
-
         } elseif ($enamDigitVano === '070240') {
             require_once __DIR__.'/../config/connectAlberr.php';
             require_once __DIR__.'/pushNotif/walisongo.php';
         } elseif ($enamDigitVano === '880088') {
-            // MARKAZ_AL_AZIZ — forward ke /api/finance/qris/push-notif
             require_once __DIR__.'/../config/connectMarkaz.php';
             require_once __DIR__.'/pushNotif/markaz.php';
         } elseif ($enamDigitVano === '111111') {
             require_once __DIR__.'/../config/connectQrDummy.php';
             require_once __DIR__.'/pushNotif/dummy.php';
-        } elseif ($enamDigitVano === '751000' || $enamDigitVano === '757777' || $enamDigitVano === '222222') {
-            // WEB_TAGIHAN_DEMO / tagihan cicilan — vano = 751000 + nocust (legacy 757777/222222)
+        } elseif ($enamDigitVano === '751000') {
+            // WEB_TAGIHAN_DEMO → forward DEMO_INSTALLMENT (103.23.103.43), log DB (103.23.103.36)
+            require_once __DIR__.'/pushNotif/demoInstallment.php';
+        } elseif ($enamDigitVano === '757777' || $enamDigitVano === '222222') {
             require_once __DIR__.'/../config/connectTagihanCicilan.php';
             require_once __DIR__.'/pushNotif/tagihanCicilan.php';
         } else {
@@ -175,14 +173,23 @@ try {
         }
     } else {
         http_response_code(400);
-        $errorResponse = [
+        echo json_encode([
             'responseCode' => '01',
             'responseMessage' => $responseMessage,
             'responseTimestamp' => date('Y-m-d H:i:s'),
-        ];
-        echo json_encode($errorResponse);
+        ]);
         exit;
     }
 } catch (Throwable $th) {
-    // throw $th;
+    error_log('pushNotif.php exception: '.$th->getMessage().' @ '.$th->getFile().':'.$th->getLine());
+    if (! headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+    }
+    echo json_encode([
+        'responseCode' => '01',
+        'responseMessage' => 'pushNotif error: '.$th->getMessage(),
+        'responseTimestamp' => date('Y-m-d H:i:s'),
+    ]);
+    exit;
 }

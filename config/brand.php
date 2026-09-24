@@ -37,8 +37,8 @@ return [
     |--------------------------------------------------------------------------
     | Metode pembayaran
     |--------------------------------------------------------------------------
-    | payment_qris = false → hanya VA
-    | payment_qris = true  → pilihan VA atau QRIS di modal bayar
+    | payment_qris = false → hanya VA untuk bayar tagihan
+    | payment_qris = true  → tombol Top up via QRIS (isi saldo, tanpa pilih tagihan)
     */
     'payment_qris' => filter_var(env('BRAND_PAYMENT_QRIS', false), FILTER_VALIDATE_BOOLEAN),
     'qris' => [
@@ -53,23 +53,27 @@ return [
     |--------------------------------------------------------------------------
     | Warna (hex). Dipakai sebagai CSS variables + PWA theme-color
     |--------------------------------------------------------------------------
-    | Primary = tombol / aksen utama (institutional green by default)
+    | Primary = biru ICT yang lebih dalam (kontras baik di UI)
+    | Highlight = kuning titik "i" logo
+    | Soft cyan logo (#3AB4F2) dipakai sebagai aksen dekoratif di CSS
     */
     'colors' => [
-        'primary' => env('BRAND_COLOR_PRIMARY', '#1b6b3a'),
-        'primary_hover' => env('BRAND_COLOR_PRIMARY_HOVER', '#155530'),
-        'primary_soft' => env('BRAND_COLOR_PRIMARY_SOFT', '#e8f3ec'),
-        'theme' => env('BRAND_COLOR_THEME', '#14532d'),
-        'bg' => env('BRAND_COLOR_BG', '#e9eeea'),
+        'primary' => env('BRAND_COLOR_PRIMARY', '#0B7EB8'),
+        'primary_hover' => env('BRAND_COLOR_PRIMARY_HOVER', '#086693'),
+        'primary_soft' => env('BRAND_COLOR_PRIMARY_SOFT', '#D6EEF8'),
+        'theme' => env('BRAND_COLOR_THEME', '#0B7EB8'),
+        'highlight' => env('BRAND_COLOR_HIGHLIGHT', '#E89B0C'),
+        'highlight_soft' => env('BRAND_COLOR_HIGHLIGHT_SOFT', '#FFF3D1'),
+        'bg' => env('BRAND_COLOR_BG', '#e4e9ee'),
         'surface' => env('BRAND_COLOR_SURFACE', '#ffffff'),
-        'text' => env('BRAND_COLOR_TEXT', '#1a2420'),
+        'text' => env('BRAND_COLOR_TEXT', '#0a1f2e'),
         // Dark mode
-        'dark_bg' => env('BRAND_COLOR_DARK_BG', '#101814'),
-        'dark_surface' => env('BRAND_COLOR_DARK_SURFACE', '#18241e'),
-        'dark_primary' => env('BRAND_COLOR_DARK_PRIMARY', '#5ecf84'),
-        'dark_primary_hover' => env('BRAND_COLOR_DARK_PRIMARY_HOVER', '#3db866'),
-        'dark_primary_soft' => env('BRAND_COLOR_DARK_PRIMARY_SOFT', '#143524'),
-        'dark_text' => env('BRAND_COLOR_DARK_TEXT', '#e8f0eb'),
+        'dark_bg' => env('BRAND_COLOR_DARK_BG', '#0a1218'),
+        'dark_surface' => env('BRAND_COLOR_DARK_SURFACE', '#15202a'),
+        'dark_primary' => env('BRAND_COLOR_DARK_PRIMARY', '#4DB8E8'),
+        'dark_primary_hover' => env('BRAND_COLOR_DARK_PRIMARY_HOVER', '#3AB4F2'),
+        'dark_primary_soft' => env('BRAND_COLOR_DARK_PRIMARY_SOFT', '#163548'),
+        'dark_text' => env('BRAND_COLOR_DARK_TEXT', '#e8f1f6'),
     ],
 
     /*
@@ -77,7 +81,7 @@ return [
     | Bentuk UI
     |--------------------------------------------------------------------------
     */
-    'radius' => (int) env('BRAND_RADIUS', 3), // px — tajam, institusional
+    'radius' => (int) env('BRAND_RADIUS', 12), // px — lembut, modern institusional
     'font_family' => env(
         'BRAND_FONT',
         "'Plus Jakarta Sans', system-ui, sans-serif"
@@ -102,7 +106,7 @@ return [
         'display' => env('BRAND_PWA_DISPLAY', 'standalone'),
         'orientation' => env('BRAND_PWA_ORIENTATION', 'portrait-primary'),
         'start_url' => env('BRAND_PWA_START_URL', '/?source=pwa'),
-        'background_color' => env('BRAND_PWA_BG', '#101814'),
+        'background_color' => env('BRAND_PWA_BG', '#0a1620'),
     ],
 
 ];

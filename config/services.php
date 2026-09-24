@@ -43,9 +43,9 @@ return [
 
     // DB sekolah untuk simpan mst_qris / mst_qris_item (sama dengan DEMO_WS database.php)
     'tagihan_db' => [
-        'host' => env('TAGIHAN_DB_HOST', '10.99.23.26'),
+        'host' => env('TAGIHAN_DB_HOST', '103.23.103.36'),
         'port' => env('TAGIHAN_DB_PORT', '3306'),
-        'database' => env('TAGIHAN_DB_DATABASE', 'sidoarjo_raudhatul_jannah'),
+        'database' => env('TAGIHAN_DB_DATABASE', 'demo_smartpayment_installment'),
         'username' => env('TAGIHAN_DB_USERNAME', 'root'),
         'password' => env('TAGIHAN_DB_PASSWORD', 'Smartpay1ct'),
     ],

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -35,12 +35,13 @@ function notify(message, type) {
   var dark = document.documentElement.classList.contains('dark');
   var b = window.__BRAND__ || {};
   var bg = {
-    success: dark ? (b.primaryDark || '#5ecf84') : (b.primary || '#1b6b3a'),
+    success: dark ? (b.primaryDark || '#4DB8E8') : (b.primary || '#0B7EB8'),
     error: '#c62828',
-    warning: '#b45309',
-    info: dark ? (b.surfaceDark || '#18241e') : '#1a2420'
+    warning: '#E89B0C',
+    info: dark ? (b.surfaceDark || '#15202a') : '#0a1f2e'
   };
-  var color = (type === 'success' && dark) ? '#0a1a10' : '#fff';
+  var color = (type === 'success' && dark) ? '#0a1a28' : '#fff';
+  if (type === 'warning') color = '#0a1f2e';
   if (typeof Toastify === 'undefined') {
     console[(type === 'error') ? 'error' : 'log'](message);
     return;
@@ -79,13 +80,15 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
   $brand = config('brand');
   $brandFooter = $brand['footer'] ?: ('Copyright ' . date('Y') . ' ' . $brand['name']);
   $showGuide = !empty($brand['show_guide']);
+  $isLoggedIn = isset($result) && !empty($result['status']);
 @endphp
-<div class="page-bg"></div>
-<div class="app-shell {{ $showGuide ? 'has-guide' : 'no-guide' }}">
-  <div class="topbar">
+<div class="page-bg" aria-hidden="true"></div>
+<div class="app-shell {{ $showGuide ? 'has-guide' : 'no-guide' }} {{ $isLoggedIn ? 'is-logged' : 'is-guest' }}">
+  <header class="topbar">
     <div class="brand-wrap">
       <img src="{{ asset($brand['logo']) }}" alt="{{ $brand['name'] }}" class="brand-logo">
       <div class="brand-text">
+        <p class="brand-kicker">Portal pembayaran</p>
         <h1 class="brand-name">{{ $brand['name'] }}</h1>
         <p class="brand-tagline">{{ $brand['tagline'] }}</p>
       </div>
@@ -95,26 +98,30 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         <svg id="themeIcon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
         <span class="theme-label" id="themeLabel">Mode gelap</span>
       </button>
-      <button class="icon-btn accent" id="installBtn" type="button" aria-label="Install aplikasi" title="Install aplikasi">
+      <button class="icon-btn" id="installBtn" type="button" aria-label="Install aplikasi" title="Install aplikasi">
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        <span class="theme-label">Install</span>
+        <span class="theme-label">Install app</span>
       </button>
     </div>
-  </div>
+  </header>
 
   <div class="app-body">
   <div class="app-main">
-  <div class="card" id="akunCard" @if(isset($result) && !empty($result['status'])) hidden @endif>
-    <form method="POST" action="/" id="billForm">
+  <div class="card panel login-panel" id="akunCard" @if($isLoggedIn) hidden @endif>
+    <div class="login-intro">
+      <p class="login-eyebrow">Akses tagihan</p>
+      <h2 class="login-title">Informasi akun</h2>
+      <p class="login-lede">Masukkan userlogin dan password untuk melihat tagihan serta melakukan pembayaran.</p>
+    </div>
+    <form method="POST" action="/" id="billForm" class="login-form">
       @csrf
-      <div class="section-title">Informasi akun</div>
-      <div class="form-grid">
+      <div class="form-grid login-fields">
         <div class="field">
-          <label>Userlogin <em>*</em></label>
+          <label for="noCust">Userlogin <em>*</em></label>
           <input type="text" name="no_cust" id="noCust" inputmode="numeric" autocomplete="username" placeholder="Masukkan userlogin" value="{{ old('no_cust', $va ?? '') }}" required>
         </div>
         <div class="field">
-          <label>Password <em>*</em></label>
+          <label for="password">Password <em>*</em></label>
           <div class="pw-wrap">
             <input type="password" name="password" id="password" autocomplete="current-password" placeholder="Masukkan password" required>
             <button type="button" class="pw-toggle" id="togglePassword" aria-label="Tampilkan password">
@@ -134,12 +141,14 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         </div>
       </div>
       @endif
-      <button type="submit" name="submit" class="submit-btn">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        Cek tagihan
-      </button>
+      <div class="form-actions">
+        <button type="submit" name="cek_tagihan" class="submit-btn" id="btnCekTagihan">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Cek tagihan
+        </button>
+      </div>
       @if($showGuide)
-      <div class="mobile-guide" style="display:none;margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--border)">
+      <div class="mobile-guide">
         <div class="aside-links">
           @if(!empty($brand['guide_pdf']) && file_exists(public_path($brand['guide_pdf'])))
           <a class="aside-link" href="{{ asset($brand['guide_pdf']) }}" target="_blank" rel="noopener">Unduh booklet pembayaran</a>
@@ -170,40 +179,88 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
 
   @if(isset($result))
     @if($result['status'])
-      <div class="card" id="resultSection">
+      <div class="card panel panel-profile" id="resultSection">
         <div class="siswa-head">
-          <div class="section-title">Data siswa</div>
-          <div class="tbl-controls">
-            <button type="button" class="btn-logout" id="btnLogout" onclick="logoutAkun()">Logout</button>
-            <button type="button" class="btn-showall" id="btnMultiAkun" onclick="openMultiAkunModal()">Multi akun</button>
+          <div>
+            <div class="section-title">Data siswa</div>
+            <p class="section-lead">Identitas akun aktif dan saldo virtual account.</p>
+          </div>
+          <div class="tbl-controls action-group">
+            <button type="button" class="ui-btn ui-btn-secondary ui-btn-sm" id="btnMultiAkun" onclick="openMultiAkunModal()">Multi akun</button>
+            <button type="button" class="ui-btn ui-btn-danger-outline ui-btn-sm" id="btnLogout" onclick="logoutAkun()">Keluar</button>
           </div>
         </div>
-        <div class="student-grid">
-          <div class="sf"><label>Nama</label><p>{{ $result['data']['nama'] ?? '-' }}</p></div>
-          <div class="sf"><label>Kelas</label><p>{{ $result['data']['kelas'] ?? '-' }}</p></div>
-          <div class="sf"><label>Angkatan</label><p>{{ ($academic_year ?? 'all') === 'all' ? 'Semua' : $academic_year }}</p></div>
-          <div class="sf"><label>Saldo VA</label><p>Rp {{ number_format($result['data']['saldo'] ?? 0, 0, ',', '.') }}</p></div>
-          <div class="sf"><label>NOVA</label><p class="sf-nova" title="{{ $result['data']['va_number'] ?? '-' }}">{{ $result['data']['va_number'] ?? '-' }}</p></div>
-          <div class="sf"><label>Jenjang</label><p>{{ $result['data']['jenjang'] ?? '-' }}</p></div>
+
+        <div class="profile-hero">
+          <div class="profile-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($result['data']['nama'] ?? 'S', 0, 1)) }}</div>
+          <div class="profile-main">
+            <p class="profile-name" title="{{ $result['data']['nama'] ?? '-' }}">{{ $result['data']['nama'] ?? '-' }}</p>
+            <p class="profile-sub">
+              <span>{{ $result['data']['kelas'] ?? '-' }}</span>
+              <span class="dot">·</span>
+              <span>{{ $result['data']['jenjang'] ?? '-' }}</span>
+              <span class="dot">·</span>
+              <span>{{ ($academic_year ?? 'all') === 'all' ? 'Semua angkatan' : $academic_year }}</span>
+            </p>
+            <div class="profile-ids">
+              <div class="pid">
+                <span>NOVA</span>
+                <b class="sf-nova" title="{{ $result['data']['va_number'] ?? '-' }}">{{ $result['data']['va_number'] ?? '-' }}</b>
+              </div>
+              <div class="pid">
+                <span>NIS / Userlogin</span>
+                <b title="{{ $result['data']['no_cust'] ?? $result['data']['num2nd'] ?? '-' }}">{{ $result['data']['no_cust'] ?? $result['data']['num2nd'] ?? '-' }}</b>
+              </div>
+            </div>
+          </div>
+          <div class="profile-saldo">
+            <span>Saldo VA</span>
+            <strong id="saldoVaText">Rp {{ number_format($result['data']['saldo'] ?? 0, 0, ',', '.') }}</strong>
+          </div>
         </div>
 
-        <div class="divider"></div>
+        @if(config('brand.payment_qris'))
+        <div class="topup-panel">
+          <div class="topup-copy">
+            <p class="topup-kicker">Isi saldo</p>
+            <p class="topup-title">Top up saldo VA</p>
+            <p class="topup-hint">Tidak perlu pilih tagihan. Masukkan nominal, lalu bayar dengan scan QRIS.</p>
+          </div>
+          <button type="button" class="ui-btn ui-btn-primary btn-topup-qris" id="btnTopupQris" onclick="showTopupQrisModal()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Top up via QRIS
+          </button>
+        </div>
+        @endif
+      </div>
 
+      @php
+        $tagihanAktifList = $result['data']['tagihan'] ?? [];
+        $hasTagihanAktif = is_array($tagihanAktifList) && count($tagihanAktifList) > 0;
+        $tagihanLunasList = $result['data']['tagihan_lunas'] ?? [];
+        $hasTagihanLunas = is_array($tagihanLunasList) && count($tagihanLunasList) > 0;
+      @endphp
+
+      <div class="card panel panel-bills">
         <div class="tbl-bar">
-          <div class="tbl-title">Tagihan aktif - {{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }}</div>
+          <div>
+            <div class="tbl-title">Tagihan aktif</div>
+            <p class="section-lead">{{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }} · pilih tagihan lalu bayar</p>
+          </div>
           <div class="tbl-controls">
+            <label class="ctrl-label" for="tagihanPerPage">Tampil</label>
             <select id="tagihanPerPage" onchange="changeTagihanPerPage()" aria-label="Jumlah data">
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
-            <button class="btn-showall" type="button" onclick="showAllTagihan()">Tampilkan semua</button>
+            <button class="ui-btn ui-btn-secondary ui-btn-sm btn-showall" type="button" onclick="showAllTagihan()">Semua</button>
           </div>
         </div>
-        <div id="tagihanInfo" class="tbl-info" style="margin-bottom:.75rem"></div>
-        <div class="tbl-wrap excel-wrap">
-          <table class="excel-tbl">
+        <div id="tagihanInfo" class="tbl-info"></div>
+        <div class="tbl-wrap excel-wrap {{ $hasTagihanAktif ? '' : 'is-empty' }}">
+          <table class="excel-tbl {{ $hasTagihanAktif ? '' : 'is-empty' }}">
             <thead>
               <tr>
                 <th class="sticky-l sticky-l0"><input type="checkbox" class="chk" id="selectAll" onclick="toggleSelectAll(this)" aria-label="Pilih semua"></th>
@@ -219,7 +276,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
               </tr>
             </thead>
             <tbody id="tagihanTableBody">
-              @forelse($result['data']['tagihan'] as $i => $tagih)
+              @forelse($tagihanAktifList as $i => $tagih)
               @php
                 $bolehCicil = (int)($tagih['isINSTALLABLE'] ?? $tagih['isinstallable'] ?? $tagih['is_installment'] ?? 0) === 1;
                 $sudahBayar = (int)($tagih['sudah_dibayar'] ?? 0);
@@ -253,7 +310,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
                 <td>{{ $expLabel }}</td>
               </tr>
               @empty
-              <tr><td colspan="10" class="empty-note">Tidak ada data tersedia</td></tr>
+              <tr><td colspan="10" class="empty-note">Tidak ada tagihan aktif</td></tr>
               @endforelse
             </tbody>
           </table>
@@ -286,8 +343,8 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
               @endif
             </div>
             <div class="bill-card-main">
-              <h3>{{ ucwords(str_replace('_', ' ', strtolower($tagih['nama_tagihan']))) }}</h3>
-              <p class="bill-amount">Rp {{ number_format($totalTagih, 0, ',', '.') }}</p>
+            <h3>{{ ucwords(str_replace('_', ' ', strtolower($tagih['nama_tagihan']))) }}</h3>
+            <p class="bill-amount">Rp {{ number_format($totalTagih, 0, ',', '.') }}</p>
             </div>
             <div class="bill-facts">
               <div class="bill-fact"><span>Periode</span><b>{{ $tagih['periode'] ?: '-' }}</b></div>
@@ -301,40 +358,49 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
             </div>
           </article>
           @empty
-          <div class="empty-note">Tidak ada data tersedia</div>
+          <div class="empty-state">
+            <p class="empty-state-title">Tidak ada tagihan aktif</p>
+            <p class="empty-state-text">Semua tagihan sudah lunas, atau belum ada data untuk periode ini.</p>
+          </div>
           @endforelse
         </div>
         <div id="tagihanPagination" class="pagination"></div>
 
-        @if(!empty($result['data']['tagihan']))
-        <p class="pay-note">*Pilih tagihan yang akan dibayar. Yang tidak bisa dicicil harus dibayar sesuai sisa. Yang bisa dicicil, nominal bayar tidak boleh melebihi sisa tagihan.</p>
-        <div class="pay-summary" id="paySummary">
-          <span id="paySummaryText">0 tagihan dipilih</span>
-          <b id="paySummaryTotal">Rp 0</b>
+        @if($hasTagihanAktif)
+        <div class="pay-dock">
+          <p class="pay-note">Centang tagihan yang ingin dibayar. Tagihan non-cicil harus dilunasi sisa; cicilan tidak boleh melebihi sisa.</p>
+          <div class="pay-summary" id="paySummary">
+            <span id="paySummaryText">0 tagihan dipilih</span>
+            <b id="paySummaryTotal">Rp 0</b>
+          </div>
+          <button type="button" class="ui-btn ui-btn-primary ui-btn-block pay-btn" id="btnBayar" onclick="showPaymentModal()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Bayar tagihan terpilih
+          </button>
         </div>
-        <button type="button" class="pay-btn" id="btnBayar" onclick="showPaymentModal()">
-          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-          Bayar tagihan
-        </button>
         @endif
+      </div>
 
-        <div class="divider"></div>
-
+      <div class="card panel panel-bills">
         <div class="tbl-bar">
-          <div class="tbl-title">Tagihan lunas - {{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }}</div>
+          <div>
+            <div class="tbl-title">Tagihan lunas</div>
+            <p class="section-lead">{{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }} · riwayat pembayaran</p>
+          </div>
           <div class="tbl-controls">
+            <label class="ctrl-label" for="lunasPerPage">Tampil</label>
             <select id="lunasPerPage" onchange="changeLunasPerPage()" aria-label="Jumlah data">
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
-            <button class="btn-showall" type="button" onclick="showAllLunas()">Tampilkan semua</button>
+            <button class="ui-btn ui-btn-secondary ui-btn-sm btn-showall" type="button" onclick="showAllLunas()">Semua</button>
           </div>
         </div>
-        <div id="lunasInfo" class="tbl-info" style="margin-bottom:.75rem"></div>
-        <div class="tbl-wrap">
-          <table>
+        <div id="lunasInfo" class="tbl-info"></div>
+        <div class="tbl-wrap {{ $hasTagihanLunas ? '' : 'is-empty' }}">
+          <table class="{{ $hasTagihanLunas ? '' : 'is-empty' }}">
             <thead>
               <tr>
                 <th>No</th>
@@ -347,7 +413,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
               </tr>
             </thead>
             <tbody id="lunasTableBody">
-              @forelse($result['data']['tagihan_lunas'] ?? [] as $i => $tagih)
+              @forelse($tagihanLunasList as $i => $tagih)
               <tr data-index="{{ $i }}">
                 <td>{{ $i+1 }}</td>
                 <td>{{ $tagih['FURUTAN'] ?? '-' }}</td>
@@ -355,7 +421,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
                 <td>{{ $tagih['periode'] ?: '-' }}</td>
                 <td class="money">Rp&nbsp;{{ number_format($tagih['total_tagihan'], 0, ',', '.') }}</td>
                 <td>{{ !empty($tagih['PAIDDT']) ? \Carbon\Carbon::parse($tagih['PAIDDT'])->format('Y-m-d') : '-' }}</td>
-                <td><button type="button" class="btn-detail" onclick="showLunasDetail({{ $i }})">Lihat</button></td>
+                <td><button type="button" class="ui-btn ui-btn-secondary ui-btn-sm btn-detail" onclick="showLunasDetail({{ $i }})">Detail</button></td>
               </tr>
               @empty
               <tr><td colspan="7" class="empty-note">Tidak ada tagihan lunas</td></tr>
@@ -364,15 +430,15 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
           </table>
         </div>
         <div class="card-list" id="lunasCardList">
-          @forelse($result['data']['tagihan_lunas'] ?? [] as $i => $tagih)
+          @forelse($tagihanLunasList as $i => $tagih)
           <article class="bill-card bill-card-lunas" data-index="{{ $i }}">
             <div class="bill-card-top">
               <span class="badge badge-paid">Lunas</span>
-              <button type="button" class="btn-detail" onclick="showLunasDetail({{ $i }})">Detail</button>
+              <button type="button" class="ui-btn ui-btn-secondary ui-btn-sm btn-detail" onclick="showLunasDetail({{ $i }})">Detail</button>
             </div>
             <div class="bill-card-main">
-              <h3>{{ ucwords(str_replace('_', ' ', strtolower($tagih['nama_tagihan']))) }}</h3>
-              <p class="bill-amount">Rp {{ number_format($tagih['total_tagihan'], 0, ',', '.') }}</p>
+            <h3>{{ ucwords(str_replace('_', ' ', strtolower($tagih['nama_tagihan']))) }}</h3>
+            <p class="bill-amount">Rp {{ number_format($tagih['total_tagihan'], 0, ',', '.') }}</p>
             </div>
             <div class="bill-facts">
               <div class="bill-fact"><span>Periode</span><b>{{ $tagih['periode'] ?: '-' }}</b></div>
@@ -401,6 +467,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
   <aside class="app-aside" aria-label="Panduan">
     <div class="card aside-card">
       <div class="aside-body">
+        <p class="aside-eyebrow">Bantuan</p>
         <h2>Panduan pembayaran</h2>
         <p>Ikuti langkah di gambar, atau buka booklet PDF untuk petunjuk lengkap.</p>
         @if(!empty($brand['guide_image']) && file_exists(public_path($brand['guide_image'])))
@@ -410,10 +477,10 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         @endif
         <div class="aside-links">
           @if(!empty($brand['guide_pdf']) && file_exists(public_path($brand['guide_pdf'])))
-          <a class="aside-link" href="{{ asset($brand['guide_pdf']) }}" target="_blank" rel="noopener">Unduh booklet PDF</a>
+          <a class="ui-btn ui-btn-secondary ui-btn-block aside-link" href="{{ asset($brand['guide_pdf']) }}" target="_blank" rel="noopener">Unduh booklet PDF</a>
           @endif
           @if(!empty($brand['guide_image']) && file_exists(public_path($brand['guide_image'])))
-          <a class="aside-link" href="{{ asset($brand['guide_image']) }}" target="_blank" rel="noopener">Lihat gambar panduan</a>
+          <a class="ui-btn ui-btn-secondary ui-btn-block aside-link" href="{{ asset($brand['guide_image']) }}" target="_blank" rel="noopener">Lihat gambar panduan</a>
           @endif
         </div>
         <div class="aside-meta">
@@ -603,11 +670,11 @@ function syncThemeUI(theme) {
   if (theme === 'dark') {
     lbl.textContent = 'Mode terang';
     icon.innerHTML = ICON_SUN;
-    if (meta) meta.setAttribute('content', b.theme || '#14532d');
+    if (meta) meta.setAttribute('content', b.theme || '#0B7EB8');
   } else {
     lbl.textContent = 'Mode gelap';
     icon.innerHTML = ICON_MOON;
-    if (meta) meta.setAttribute('content', b.theme || '#14532d');
+    if (meta) meta.setAttribute('content', b.theme || '#0B7EB8');
   }
 }
 
@@ -852,7 +919,30 @@ window.addEventListener('click', e => {
 });
 
 document.getElementById('billForm').addEventListener('submit', e => {
-  if (turnstileEnabled && !turnstileToken) { e.preventDefault(); notifyWarn('Verifikasi', 'Selesaikan verifikasi keamanan terlebih dahulu!'); }
+  if (turnstileEnabled && !turnstileToken) {
+    e.preventDefault();
+    notifyWarn('Verifikasi', 'Selesaikan verifikasi keamanan terlebih dahulu!');
+    return;
+  }
+  const overlay = document.getElementById('loginCartoon');
+  if (!overlay) return;
+  overlay.hidden = false;
+  document.body.classList.add('login-busy');
+  const btn = document.getElementById('btnCekTagihan');
+  if (btn) btn.disabled = true;
+  const lines = [
+    ['Sedang masuk…', 'Mencari tagihan kamu dulu ya'],
+    ['Hampir siap…', 'Sedikit lagi, sabar ya'],
+    ['Cek saldo…', 'Mengambil data akun'],
+  ];
+  let i = 0;
+  const titleEl = document.getElementById('loginCartoonTitle');
+  const subEl = document.getElementById('loginCartoonSub');
+  window.__loginCartoonTimer = setInterval(() => {
+    i = (i + 1) % lines.length;
+    if (titleEl) titleEl.textContent = lines[i][0];
+    if (subEl) subEl.textContent = lines[i][1];
+  }, 1800);
 });
 
 const tagihanAktif = @json(isset($result['data']['tagihan']) ? $result['data']['tagihan'] : []);
@@ -870,11 +960,160 @@ const siswaBayar = {
 };
 const generateVaUrl = @json(route('generate-va'));
 const generateQrisUrl = @json(route('generate-qris'));
+const cekStatusPembayaranUrl = @json(route('cek-status-pembayaran'));
 const paymentQrisEnabled = !!(window.__BRAND__ && window.__BRAND__.paymentQris);
 const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+const brandIconUrl = @json(asset(config('brand.icon_192')));
 let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
+let paymentWatchTimer = null;
+let paymentWatchStopAt = 0;
+
+async function ensureNotifyPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try {
+    const p = await Notification.requestPermission();
+    return p === 'granted';
+  } catch (e) {
+    return false;
+  }
+}
+
+async function showSystemNotification(title, body, data) {
+  const opts = {
+    body: body || '',
+    icon: brandIconUrl,
+    badge: brandIconUrl,
+    tag: (data && data.tag) || 'pembayaran-sukses',
+    renotify: true,
+    requireInteraction: false,
+    data: Object.assign({ url: '/' }, data || {}),
+  };
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, opts);
+        return;
+      }
+    }
+  } catch (e) {}
+  try {
+    if (Notification.permission === 'granted') {
+      new Notification(title, opts);
+    }
+  } catch (e) {}
+}
+
+function stopPaymentWatch() {
+  if (paymentWatchTimer) {
+    clearInterval(paymentWatchTimer);
+    paymentWatchTimer = null;
+  }
+  paymentWatchStopAt = 0;
+}
+
+function startPaymentWatch(opts) {
+  stopPaymentWatch();
+  const cfg = opts || {};
+  const type = cfg.type || 'qris';
+  const qrisId = String(cfg.qrisId || '');
+  const transactionId = String(cfg.transactionId || '');
+  const vano = String(cfg.vano || '');
+  const amount = Number(cfg.amount || 0);
+  const aaList = Array.isArray(cfg.aaList) ? cfg.aaList : [];
+  const baselineUnpaid = Number(cfg.baselineUnpaid != null ? cfg.baselineUnpaid : amount);
+  const baselineSaldo = Number(cfg.baselineSaldo != null ? cfg.baselineSaldo : (siswaBayar.saldo || 0));
+  const intervalMs = 4000;
+  const maxMs = 12 * 60 * 1000;
+  paymentWatchStopAt = Date.now() + maxMs;
+  let checking = false;
+
+  if (type === 'qris' && !qrisId && !transactionId && !vano) {
+    console.warn('paymentWatch: tidak ada qris_id / transaction_id / vano');
+    return;
+  }
+
+  ensureNotifyPermission();
+
+  const tick = async () => {
+    if (checking) return;
+    if (Date.now() > paymentWatchStopAt) {
+      stopPaymentWatch();
+      return;
+    }
+    checking = true;
+    try {
+      if (type === 'qris') {
+        const params = new URLSearchParams();
+        if (qrisId) params.set('qris_id', qrisId);
+        if (transactionId) params.set('transaction_id', transactionId);
+        if (vano) params.set('vano', vano);
+        const res = await fetch(cekStatusPembayaranUrl + '?' + params.toString(), {
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store'
+        });
+        const json = await res.json();
+        if (json && json.paid) {
+          stopPaymentWatch();
+          const nominal = formatRp(json.data?.amount || amount);
+          const title = 'Pembayaran berhasil';
+          const body = 'Top up ' + nominal + ' sudah masuk. Saldo VA akan diperbarui.';
+          await showSystemNotification(title, body, {
+            tag: 'qris-' + (qrisId || transactionId || vano || Date.now())
+          });
+          notifyOk(title, body);
+          const badge = document.querySelector('.qris-badge');
+          if (badge) {
+            badge.textContent = 'paid';
+            badge.classList.remove('qris-badge-pending');
+            badge.classList.add('qris-badge-paid');
+          }
+          setTimeout(() => { window.location.reload(); }, 1800);
+        }
+      } else if (type === 'va') {
+        const params = new URLSearchParams();
+        if (aaList.length) params.set('aa', aaList.join(','));
+        const res = await fetch(cekStatusPembayaranUrl + '?' + params.toString(), {
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store'
+        });
+        const json = await res.json();
+        const d = json?.data || {};
+        const unpaid = Number(d.unpaid_total);
+        const saldo = Number(d.saldo);
+        const unpaidOk = Number.isFinite(unpaid) && unpaid <= (baselineUnpaid - Math.max(500, amount * 0.85) + 1);
+        const saldoOk = Number.isFinite(saldo) && saldo >= (baselineSaldo + Math.max(500, amount * 0.85));
+        if (json?.status && (unpaidOk || saldoOk)) {
+          stopPaymentWatch();
+          const title = 'Pembayaran berhasil';
+          const body = 'Pembayaran ' + formatRp(amount) + ' sudah diterima.';
+          await showSystemNotification(title, body, { tag: 'va-' + Date.now() });
+          notifyOk(title, body);
+          setTimeout(() => { window.location.reload(); }, 1800);
+        }
+      }
+    } catch (e) {
+      console.warn('paymentWatch error', e);
+    } finally {
+      checking = false;
+    }
+  };
+
+  paymentWatchTimer = setInterval(tick, intervalMs);
+  setTimeout(tick, 1500);
+}
+
+@if(isset($result) && !empty($result['status']))
+document.addEventListener('DOMContentLoaded', function () {
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(function () { ensureNotifyPermission(); }, 1200);
+  }
+});
+@endif
 
 function openMultiAkunModal() {
   const modal = document.getElementById('multiAkunModal');
@@ -1335,21 +1574,12 @@ function showPaymentModal() {
       </table>
     </div>
     <div class="pay-total"><span>Total pembayaran</span><span id="modalPayTotal">${formatRp(total)}</span></div>
-    ${paymentQrisEnabled ? `
-    <div class="pay-method" id="payMethodBox">
-      <span class="pi-lbl">Metode pembayaran</span>
-      <div class="pay-method-opts">
-        <label class="pay-method-opt"><input type="radio" name="payMethod" value="va" checked> Virtual Account</label>
-        <label class="pay-method-opt"><input type="radio" name="payMethod" value="qris"> QRIS</label>
-      </div>
-    </div>` : ''}
     <div id="vaResult"></div>`;
 
-  const confirmLabel = paymentQrisEnabled ? 'Lanjutkan pembayaran' : '+ Buat Nomor VA';
   document.getElementById('paymentFoot').innerHTML = `
     <div class="pay-actions" id="payActions">
       <button type="button" class="btn-ghost" onclick="closePaymentModal()">Tutup</button>
-      <button type="button" class="btn-pay-confirm" id="btnBuatVa" onclick="prosesPembayaran()">${confirmLabel}</button>
+      <button type="button" class="btn-pay-confirm" id="btnBuatVa" onclick="prosesPembayaran()">+ Buat Nomor VA</button>
     </div>`;
 
   document.querySelectorAll('.modal-bayar-input').forEach(inp => {
@@ -1389,9 +1619,6 @@ async function prosesPembayaran() {
     }
   }
 
-  const methodEl = document.querySelector('input[name="payMethod"]:checked');
-  const method = (paymentQrisEnabled && methodEl) ? methodEl.value : 'va';
-
   const items = selected.map(i => ({
     AA: i.AA,
     amount: parseInt(i.bayar, 10),
@@ -1405,7 +1632,7 @@ async function prosesPembayaran() {
   const total = amounts.reduce((s, n) => s + n, 0);
   const nocust = siswaBayar.no_cust || siswaBayar.num2nd || '';
 
-  if (btn) { btn.disabled = true; btn.textContent = method === 'qris' ? 'Membuat QRIS...' : 'Memproses...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
 
   const payload = {
     custid: siswaBayar.id,
@@ -1415,63 +1642,150 @@ async function prosesPembayaran() {
     billam: amounts.join(','),
     total: total,
     items: items,
-    method: method
+    method: 'va'
   };
 
   try {
-    if (method === 'qris') {
-      await prosesGenerateQris(payload, total, btn);
-    } else {
-      await prosesGenerateVa(payload, total, nocust, btn);
-    }
+    await prosesGenerateVa(payload, total, nocust, btn);
   } catch (err) {
     notifyError('Terjadi kesalahan', 'Gagal memproses pembayaran. Coba beberapa saat lagi.');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = paymentQrisEnabled ? 'Lanjutkan pembayaran' : '+ Buat Nomor VA';
+      btn.textContent = '+ Buat Nomor VA';
     }
   }
 }
 
 async function prosesGenerateVa(payload, total, nocust, btn) {
-  const res = await fetch(generateVaUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-CSRF-TOKEN': csrfToken
-    },
+    const res = await fetch(generateVaUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken
+      },
     body: JSON.stringify(payload)
-  });
+    });
 
-  const data = await res.json();
-  const rawVa = data?.data?.va_number ?? data?.va_number;
-  const vaOk = rawVa !== false && rawVa !== null && rawVa !== undefined && String(rawVa) !== 'false' && String(rawVa).trim() !== '';
-  const va = (data?.status && vaOk) ? formatNovaDisplay(nocust || rawVa) : '';
+    const data = await res.json();
+    const rawVa = data?.data?.va_number ?? data?.va_number;
+    const vaOk = rawVa !== false && rawVa !== null && rawVa !== undefined && String(rawVa) !== 'false' && String(rawVa).trim() !== '';
+    const va = (data?.status && vaOk) ? formatNovaDisplay(nocust || rawVa) : '';
 
-  if (data?.status && va && va !== '-') {
-    document.getElementById('vaResult').innerHTML = `
-      <div class="va-box">
-        <h4>Nomor Virtual Account</h4>
-        <div class="va-number" id="vaNumberText">${esc(va)}</div>
+    if (data?.status && va && va !== '-') {
+      document.getElementById('vaResult').innerHTML = `
+        <div class="va-box">
+          <h4>Nomor Virtual Account</h4>
+          <div class="va-number" id="vaNumberText">${esc(va)}</div>
         <button type="button" class="btn-copy" onclick="copyVa()">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="1"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           Salin nomor VA
         </button>
-        <p class="va-meta">Total: <b>${formatRp(total)}</b></p>
-        <p class="va-help">Bayar ke nomor VA di atas (kode bank 751000).</p>
-      </div>`;
+          <p class="va-meta">Total: <b>${formatRp(total)}</b></p>
+        <p class="va-help">Bayar ke nomor VA di atas (kode bank 751000). Kami akan memberi notifikasi saat pembayaran berhasil.</p>
+        </div>`;
     const methodBox = document.getElementById('payMethodBox');
     if (methodBox) methodBox.style.display = 'none';
-    const actions = document.getElementById('payActions');
-    if (actions) {
-      actions.innerHTML = `<button type="button" class="btn-ghost" onclick="closePaymentModal()">Tutup</button>`;
-    }
-  } else {
+      const actions = document.getElementById('payActions');
+      if (actions) {
+        actions.innerHTML = `<button type="button" class="btn-ghost" onclick="closePaymentModal()">Tutup</button>`;
+      }
+      const aaList = (payload.items || []).map(it => Number(it.AA || it.aa || 0)).filter(n => n > 0);
+      let baselineUnpaid = 0;
+      aaList.forEach((aa) => {
+        const row = (tagihanAktif || []).find((t) => Number(t.AA || t.aa || 0) === aa);
+        const sisa = Number(row?.sisa_tagihan ?? row?.SISA ?? 0);
+        if (sisa > 0) baselineUnpaid += sisa;
+        else {
+          const fromPayload = (payload.items || []).find((it) => Number(it.AA || it.aa || 0) === aa);
+          baselineUnpaid += Number(fromPayload?.amount || 0);
+        }
+      });
+      if (baselineUnpaid <= 0) baselineUnpaid = total;
+      startPaymentWatch({
+        type: 'va',
+        amount: total,
+        aaList,
+        baselineUnpaid,
+        baselineSaldo: Number(siswaBayar.saldo || 0),
+      });
+    } else {
     notifyError('Gagal membuat VA', data?.message || 'Silakan coba lagi.');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = paymentQrisEnabled ? 'Lanjutkan pembayaran' : '+ Buat Nomor VA';
+      btn.textContent = '+ Buat Nomor VA';
+    }
+  }
+}
+
+function showTopupQrisModal() {
+  if (!paymentQrisEnabled) {
+    notifyWarn('QRIS nonaktif', 'Fitur top up QRIS belum diaktifkan.');
+    return;
+  }
+  if (!siswaBayar.id) {
+    notifyWarn('Sesi', 'Data siswa tidak ditemukan. Login ulang.');
+    return;
+  }
+
+  const head = document.querySelector('#paymentModal .modal-head h3');
+  if (head) head.textContent = 'Top up via QRIS';
+
+  document.getElementById('paymentBody').innerHTML = `
+    <div class="pay-info" style="margin-bottom:.85rem">
+      <div><span class="pi-lbl">Nama</span><div class="pi-val">${esc(siswaBayar.nama) || '-'}</div></div>
+      <div><span class="pi-lbl">NIS</span><div class="pi-val">${esc(siswaBayar.no_cust || siswaBayar.num2nd) || '-'}</div></div>
+      <div><span class="pi-lbl">Saldo VA</span><div class="pi-val">${formatRp(siswaBayar.saldo || 0)}</div></div>
+      <div><span class="pi-lbl">NOVA</span><div class="pi-val">${esc(formatNovaDisplay(siswaBayar.va_number || siswaBayar.no_cust)) || '-'}</div></div>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="topupAmountInput">Nominal top up <em>*</em></label>
+      <input type="number" id="topupAmountInput" class="pay-input" min="1000" step="1000" placeholder="Contoh: 50000" inputmode="numeric" style="width:100%;max-width:100%;text-align:left;font-size:16px;padding:10px 12px">
+      <p class="va-help" style="margin:.45rem 0 0">Minimal Rp 1.000. Saldo bertambah setelah QR berhasil dibayar.</p>
+    </div>`;
+
+  document.getElementById('paymentFoot').innerHTML = `
+    <div class="pay-actions" id="payActions">
+      <button type="button" class="btn-ghost" onclick="closePaymentModal()">Tutup</button>
+      <button type="button" class="btn-pay-confirm" id="btnBuatTopupQris" onclick="prosesTopupQris()">Buat QRIS</button>
+    </div>`;
+
+  document.getElementById('paymentModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('topupAmountInput')?.focus(), 50);
+}
+
+async function prosesTopupQris() {
+  const inp = document.getElementById('topupAmountInput');
+  const btn = document.getElementById('btnBuatTopupQris');
+  const amount = parseInt(inp?.value, 10) || 0;
+
+  if (amount < 1000) {
+    notifyWarn('Nominal belum valid', 'Masukkan nominal top up minimal Rp 1.000.');
+    inp?.focus();
+    return;
+  }
+
+  const nocust = siswaBayar.no_cust || siswaBayar.num2nd || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Membuat QRIS...'; }
+
+  const payload = {
+    custid: siswaBayar.id,
+    nocust: nocust,
+    namacust: siswaBayar.nama,
+    amount: amount,
+    description: 'Top up VA ' + (siswaBayar.nama || ''),
+    payment_type: 'topup',
+    items: []
+  };
+
+  try {
+    await prosesGenerateQris(payload, amount, btn);
+  } catch (err) {
+    notifyError('Terjadi kesalahan', 'Gagal membuat QRIS top up. Coba beberapa saat lagi.');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Buat QRIS';
     }
   }
 }
@@ -1491,19 +1805,22 @@ async function prosesGenerateQris(payload, total, btn) {
   const d = data?.data || data || {};
   const rawQr = d.rawQrData || d.qris_content || '';
   const ok = !!(data?.status && rawQr);
+  const qrisId = String(d.qris_id || d.transactionQrId || '');
+  const trxId = String(d.transaction_id || d.transactionId || '');
+  const vano = String(d.vano || '');
 
   if (ok) {
     const qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=' + encodeURIComponent(rawQr);
     const exp = d.expiredTime || d.expired_time || '-';
-    const trx = d.transaction_id || d.transactionId || d.qris_id || '-';
+    const trx = trxId || qrisId || '-';
     const status = String(d.status || 'pending');
     const head = document.querySelector('#paymentModal .modal-head h3');
-    if (head) head.textContent = 'Pembayaran QRIS';
+    if (head) head.textContent = 'QRIS Top up';
 
     document.getElementById('paymentBody').innerHTML = `
       <div class="qris-result">
         <div class="qris-result-head">
-          <p class="qris-result-kicker">Total pembayaran</p>
+          <p class="qris-result-kicker">Nominal top up</p>
           <p class="qris-result-amount">${formatRp(total)}</p>
         </div>
         <div class="qris-result-frame">
@@ -1516,19 +1833,26 @@ async function prosesGenerateQris(payload, total, btn) {
           <div class="qris-result-row"><span>ID transaksi</span><b>${esc(String(trx))}</b></div>
           <div class="qris-result-row"><span>Status</span><b><span class="qris-badge qris-badge-pending">${esc(status)}</span></b></div>
         </div>
-        <p class="qris-result-help">Scan QR dengan aplikasi bank atau e-wallet sebelum waktu kedaluwarsa. Jangan tutup halaman sampai pembayaran selesai.</p>
+        <p class="qris-result-help">Scan QR dengan aplikasi bank atau e-wallet. Biarkan halaman ini terbuka — notifikasi muncul otomatis setelah pembayaran berhasil.</p>
       </div>`;
 
     document.getElementById('paymentFoot').innerHTML = `
       <div class="pay-actions" id="payActions">
         <button type="button" class="btn-ghost" onclick="closePaymentModal()" style="flex:1">Tutup</button>
       </div>`;
-    notifyOk('QRIS siap', 'Silakan scan QR untuk membayar.');
+    notifyOk('QRIS siap', 'Silakan scan. Notifikasi akan muncul setelah bayar berhasil.');
+    startPaymentWatch({
+      type: 'qris',
+      qrisId,
+      transactionId: trxId,
+      vano,
+      amount: total,
+    });
   } else {
     notifyError('Gagal membuat QRIS', data?.message || 'Silakan coba lagi.');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Lanjutkan pembayaran';
+      btn.textContent = 'Buat QRIS';
     }
   }
 }
@@ -1771,5 +2095,70 @@ if (navigator.getInstalledRelatedApps) {
 }
 syncInstallModalState();
 </script>
+
+{{-- Cartoon login loading overlay --}}
+<div id="loginCartoon" class="login-cartoon" hidden aria-live="polite" aria-busy="true">
+  <div class="login-cartoon__card">
+    <div class="login-cartoon__stage" aria-hidden="true">
+      <svg class="login-cartoon__svg" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+        {{-- floating coins (kuning logo) --}}
+        <g class="lc-coin lc-coin--1">
+          <circle cx="32" cy="48" r="14" fill="#F9A825"/>
+          <circle cx="32" cy="48" r="10" fill="#FFC94A"/>
+          <text x="32" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#B86E00">Rp</text>
+        </g>
+        <g class="lc-coin lc-coin--2">
+          <circle cx="168" cy="40" r="11" fill="#F9A825"/>
+          <circle cx="168" cy="40" r="7.5" fill="#FFC94A"/>
+          <text x="168" y="44" text-anchor="middle" font-size="9" font-weight="700" fill="#B86E00">Rp</text>
+        </g>
+        {{-- waving bill paper --}}
+        <g class="lc-bill">
+          <rect x="138" y="78" width="36" height="46" rx="4" fill="#E8F7FE" stroke="#3AB4F2" stroke-width="2"/>
+          <line x1="146" y1="90" x2="166" y2="90" stroke="#3AB4F2" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+          <line x1="146" y1="100" x2="162" y2="100" stroke="#3AB4F2" stroke-width="2" stroke-linecap="round" opacity=".4"/>
+          <line x1="146" y1="110" x2="158" y2="110" stroke="#3AB4F2" stroke-width="2" stroke-linecap="round" opacity=".3"/>
+          <rect x="156" y="82" width="8" height="8" rx="1.5" fill="#F9A825"/>
+        </g>
+        {{-- mascot body (biru logo) --}}
+        <g class="lc-mascot">
+          <ellipse class="lc-shadow" cx="100" cy="138" rx="38" ry="8" fill="rgba(58,180,242,.22)"/>
+          <g class="lc-leg lc-leg--l"><ellipse cx="84" cy="128" rx="9" ry="6" fill="#1A7BB8"/></g>
+          <g class="lc-leg lc-leg--r"><ellipse cx="116" cy="128" rx="9" ry="6" fill="#1A7BB8"/></g>
+          <ellipse cx="100" cy="98" rx="42" ry="38" fill="#3AB4F2"/>
+          <ellipse cx="100" cy="102" rx="34" ry="28" fill="#5FC4F5"/>
+          {{-- aksen kotak kuning seperti titik i logo --}}
+          <rect class="lc-badge" x="92" y="58" width="16" height="16" rx="3" fill="#F9A825"/>
+          <ellipse cx="100" cy="92" rx="28" ry="22" fill="#E8F7FE"/>
+          <g class="lc-eyes">
+            <ellipse class="lc-eye" cx="90" cy="90" rx="5.5" ry="6.5" fill="#0D3A55"/>
+            <ellipse class="lc-eye" cx="110" cy="90" rx="5.5" ry="6.5" fill="#0D3A55"/>
+            <circle cx="92" cy="88" r="1.8" fill="#fff"/>
+            <circle cx="112" cy="88" r="1.8" fill="#fff"/>
+          </g>
+          <ellipse cx="78" cy="100" rx="5" ry="3" fill="#F9A825" opacity=".45"/>
+          <ellipse cx="122" cy="100" rx="5" ry="3" fill="#F9A825" opacity=".45"/>
+          <path d="M90 106 Q100 116 110 106" fill="none" stroke="#1A7BB8" stroke-width="2.5" stroke-linecap="round"/>
+          <g class="lc-arm lc-arm--l">
+            <ellipse cx="58" cy="100" rx="8" ry="12" fill="#3AB4F2" transform="rotate(-25 58 100)"/>
+          </g>
+          <g class="lc-arm lc-arm--r">
+            <ellipse cx="142" cy="100" rx="8" ry="12" fill="#3AB4F2" transform="rotate(25 142 100)"/>
+          </g>
+        </g>
+        {{-- sparkles kuning --}}
+        <g class="lc-spark lc-spark--1" fill="#F9A825">
+          <path d="M54 70 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 z"/>
+        </g>
+        <g class="lc-spark lc-spark--2" fill="#F9A825">
+          <path d="M150 58 l1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 4 -1.5 z"/>
+        </g>
+      </svg>
+    </div>
+    <p class="login-cartoon__title" id="loginCartoonTitle">Sedang masuk…</p>
+    <p class="login-cartoon__sub" id="loginCartoonSub">Mencari tagihan kamu dulu ya</p>
+    <div class="login-cartoon__dots" aria-hidden="true"><span></span><span></span><span></span></div>
+  </div>
+</div>
 </body>
 </html>

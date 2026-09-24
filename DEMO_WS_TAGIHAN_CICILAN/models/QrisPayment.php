@@ -16,13 +16,13 @@ class QrisPayment
     }
 
     /**
-     * Generate QRIS via Lazizmu JWT server, simpan header + item (cicil/non-cicil).
+     * Generate QRIS — top-up (amount saja) atau legacy bill items.
      *
-     * @param array $meta custid, nocust, namacust, description
-     * @param array $items [{aa, amount, is_cicil, sisa_sebelum, nama_tagihan, billcd}]
+     * @param array $meta custid, nocust, namacust, description, amount
+     * @param array $items opsional; kosong = topup
      * @return array
      */
-    public function generate(array $meta, array $items)
+    public function generate(array $meta, array $items = [])
     {
         $total = 0;
         $normalized = [];
@@ -43,8 +43,12 @@ class QrisPayment
             $total += $amount;
         }
 
-        if ($total <= 0 || empty($normalized)) {
-            throw new InvalidArgumentException('Item tagihan QRIS tidak valid');
+        if (empty($normalized)) {
+            $total = (int) ($meta['amount'] ?? 0);
+        }
+
+        if ($total <= 0) {
+            throw new InvalidArgumentException('Nominal QRIS tidak valid');
         }
 
         $nocust = preg_replace('/\s+/', '', (string) ($meta['nocust'] ?? ''));
@@ -117,7 +121,14 @@ class QrisPayment
             throw new RuntimeException('Qris content tidak ditemukan dalam response');
         }
 
-        $description = (string) ($meta['description'] ?? ('Pembayaran tagihan ' . ($meta['namacust'] ?? '')));
+        $description = (string) ($meta['description'] ?? (
+            empty($normalized)
+                ? ('Top up VA ' . ($meta['namacust'] ?? ''))
+                : ('Pembayaran tagihan ' . ($meta['namacust'] ?? ''))
+        ));
+        if (empty($normalized) && stripos($description, 'top') === false) {
+            $description = 'TOPUP|'.$description;
+        }
         $requestJson = json_encode($jwtPayload);
         $responseJson = json_encode($responseData);
 
@@ -224,7 +235,20 @@ class QrisPayment
 
         $vaNumber = (string) ($qris['vano'] ?? '');
         $transactionId = (string) ($qris['transaction_id'] ?? '');
-        $description = (string) ($meta['description'] ?? '');
+        $description = (string) ($meta['description'] ?? (
+            empty($normalized)
+                ? ('Top up VA ' . ($meta['namacust'] ?? ''))
+                : ('Pembayaran tagihan ' . ($meta['namacust'] ?? ''))
+        ));
+        if (empty($normalized) && stripos($description, 'top') === false) {
+            $description = 'TOPUP|'.$description;
+        }
+        if ($total <= 0) {
+            $total = (float) ($meta['amount'] ?? 0);
+        }
+        if ($total <= 0) {
+            throw new InvalidArgumentException('Nominal QRIS tidak valid untuk disimpan');
+        }
         $requestJson = json_encode($qris['request_payload'] ?? $qris);
         $responseJson = json_encode($qris['serverResponse'] ?? $qris);
 
@@ -281,5 +305,54 @@ class QrisPayment
         }
 
         return ['id' => $paymentId, 'status' => 'pending'];
+    }
+
+    /**
+     * Status transaksi QRIS — cari by qris_id, transaction_id, atau vano.
+     */
+    public function findStatusByQrisId(string $qrisId): ?array
+    {
+        return $this->findStatus([
+            'qris_id' => $qrisId,
+        ]);
+    }
+
+    /**
+     * @param array{qris_id?:string,transaction_id?:string,vano?:string} $keys
+     */
+    public function findStatus(array $keys): ?array
+    {
+        $qrisId = trim((string) ($keys['qris_id'] ?? ''));
+        $trxId = trim((string) ($keys['transaction_id'] ?? ''));
+        $vano = trim((string) ($keys['vano'] ?? ''));
+
+        if ($qrisId === '' && $trxId === '' && $vano === '') {
+            return null;
+        }
+
+        $sql = 'SELECT id, qris_id, transaction_id, vano, amount, status, paid_flag, custid, nocust, namacust, updated_at, paid_at
+                FROM mst_qris WHERE ';
+        $parts = [];
+        $params = [];
+
+        if ($qrisId !== '') {
+            $parts[] = 'qris_id = ?';
+            $params[] = $qrisId;
+        }
+        if ($trxId !== '') {
+            $parts[] = 'transaction_id = ?';
+            $params[] = $trxId;
+        }
+        if ($vano !== '') {
+            $parts[] = 'vano = ?';
+            $params[] = $vano;
+        }
+
+        $sql .= '('.implode(' OR ', $parts).') ORDER BY id DESC LIMIT 1';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
     }
 }

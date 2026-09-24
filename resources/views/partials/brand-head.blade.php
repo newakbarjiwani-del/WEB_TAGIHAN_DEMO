@@ -39,28 +39,36 @@
 <link rel="stylesheet" href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap">
 <style>
 :root{
-  --brand-primary:{{ $c['primary'] }};
-  --brand-primary-h:{{ $c['primary_hover'] }};
-  --brand-primary-soft:{{ $c['primary_soft'] }};
-  --brand-theme:{{ $c['theme'] }};
-  --bg:#ecefed;
+  --brand-primary:{{ $c['primary'] ?: '#0B7EB8' }};
+  --brand-primary-h:{{ $c['primary_hover'] ?: '#086693' }};
+  --brand-primary-soft:{{ $c['primary_soft'] ?: '#D6EEF8' }};
+  --brand-theme:{{ $c['theme'] ?: '#0B7EB8' }};
+  --brand-highlight:{{ $c['highlight'] ?? '#E89B0C' }};
+  --brand-highlight-soft:{{ $c['highlight_soft'] ?? '#FFF3D1' }};
+  --brand-logo-cyan:#3AB4F2;
+  --bg:#e4e9ee;
+  --bg-deep:#d5dde5;
   --surface:#ffffff;
-  --surface2:#f4f6f5;
-  --border:#c5cec8;
-  --border2:#8a968e;
-  --text:#1a1f1c;
-  --text2:#3d4741;
-  --text3:#5c6861;
-  --accent:var(--brand-primary);
-  --accent-h:var(--brand-primary-h);
-  --accent-soft:var(--brand-primary-soft);
+  --surface2:#eef2f6;
+  --border:#b7c4d0;
+  --border2:#8fa3b5;
+  --text:#0a1f2e;
+  --text2:#334b5c;
+  --text3:#5a7386;
+  --accent:var(--brand-primary, #0B7EB8);
+  --accent-h:var(--brand-primary-h, #086693);
+  --accent-soft:var(--brand-primary-soft, #D6EEF8);
+  --highlight:var(--brand-highlight, #E89B0C);
+  --highlight-soft:var(--brand-highlight-soft, #FFF3D1);
   --danger:#b71c1c;
   --radius:{{ $r }}px;
   --radius-sm:{{ $radiusSm }}px;
   --font:'Plus Jakarta Sans', system-ui, sans-serif;
   --font-display:'Plus Jakarta Sans', system-ui, sans-serif;
-  --shadow:none;
-  --table-head:#14532d;
+  --shadow:0 1px 2px rgba(10,31,46,.06), 0 10px 28px rgba(10,31,46,.08);
+  --shadow-sm:0 1px 2px rgba(10,31,46,.06);
+  --table-head:#dceaf3;
+  --table-head-text:#0a4f73;
   --btn-face:#ffffff;
   color-scheme:light;
 }
@@ -68,21 +76,26 @@ html,body,button,input,select,textarea,table,th,td,.btn,.tbl-title,.brand-name,.
   font-family:var(--font) !important;
 }
 html.dark{
-  --bg:{{ $c['dark_bg'] }};
+  --bg:#0a1620;
+  --bg-deep:#071018;
   --surface:{{ $c['dark_surface'] }};
-  --surface2:#1f2e27;
-  --border:#3d5246;
-  --border2:#5a7163;
+  --surface2:#1a2e3d;
+  --border:#2a4558;
+  --border2:#3d6078;
   --text:{{ $c['dark_text'] }};
-  --text2:#c5d4cb;
-  --text3:#9aafa2;
+  --text2:#b8d0de;
+  --text3:#8aabbc;
   --accent:{{ $c['dark_primary'] }};
   --accent-h:{{ $c['dark_primary_hover'] }};
   --accent-soft:{{ $c['dark_primary_soft'] }};
+  --highlight:#F9A825;
+  --highlight-soft:#3a2f14;
   --danger:#ef5350;
-  --shadow:none;
-  --table-head:#166534;
-  --btn-face:#1f2e27;
+  --shadow:0 1px 2px rgba(0,0,0,.2), 0 10px 28px rgba(0,0,0,.28);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.25);
+  --table-head:#143044;
+  --table-head-text:#d5ebf5;
+  --btn-face:#1a2e3d;
   color-scheme:dark;
 }
 </style>
