@@ -10,7 +10,7 @@ Isi tutorial:
 
 - Cara copy sebagai base client baru
 - Setup Laravel, brand, DEMO_WS, islamic_center
-- Notifikasi sistem **Fase 1** (poll saat PWA dibuka)
+- Notifikasi: Web Push + resume saat PWA dibuka lagi
 - Checklist uji & troubleshooting
 
 ## Stack singkat

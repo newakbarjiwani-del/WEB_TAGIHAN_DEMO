@@ -987,9 +987,53 @@ const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 const brandIconUrl = @json(asset(config('brand.icon_192')));
+const pushSubscribeUrl = @json(route('push.subscribe'));
+const pushVapidUrl = @json(route('push.vapid'));
+const pushNocust = @json($result['data']['no_cust'] ?? ($result['data']['num2nd'] ?? ''));
+const pushVano = @json($result['data']['va_number'] ?? '');
 let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
 let paymentWatchTimer = null;
 let paymentWatchStopAt = 0;
+let pushSubscribeInFlight = false;
+const PAYMENT_WATCH_KEY = 'tagihan_pending_payment_watch';
+
+function savePaymentWatch(cfg) {
+  try {
+    const payload = Object.assign({}, cfg || {}, {
+      savedAt: Date.now(),
+      expiresAt: Date.now() + (12 * 60 * 1000),
+    });
+    localStorage.setItem(PAYMENT_WATCH_KEY, JSON.stringify(payload));
+  } catch (e) {}
+}
+
+function clearPaymentWatch() {
+  try { localStorage.removeItem(PAYMENT_WATCH_KEY); } catch (e) {}
+}
+
+function loadPaymentWatch() {
+  try {
+    const raw = localStorage.getItem(PAYMENT_WATCH_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || (data.expiresAt && Date.now() > data.expiresAt)) {
+      clearPaymentWatch();
+      return null;
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
 
 async function ensureNotifyPermission() {
   if (!('Notification' in window)) return false;
@@ -1003,7 +1047,49 @@ async function ensureNotifyPermission() {
   }
 }
 
-/** Fase 1: notifikasi sistem saat PWA terbuka / diakses (poll status pembayaran) */
+/** Fase 2: simpan PushSubscription agar notif jalan meski tab tertutup */
+async function ensureWebPushSubscription() {
+  if (pushSubscribeInFlight) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  const ok = await ensureNotifyPermission();
+  if (!ok) return false;
+  pushSubscribeInFlight = true;
+  try {
+    const vapidRes = await fetch(pushVapidUrl, { headers: { Accept: 'application/json' } });
+    const vapidJson = await vapidRes.json().catch(() => ({}));
+    if (!vapidRes.ok || !vapidJson.publicKey) return false;
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidJson.publicKey),
+      });
+    }
+    const body = sub.toJSON();
+    body.contentEncoding = 'aes128gcm';
+    body.nocust = pushNocust || (siswaBayar && siswaBayar.no_cust) || '';
+    body.vano = pushVano || (siswaBayar && (siswaBayar.va_number || siswaBayar.vano)) || '';
+    await fetch(pushSubscribeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    return true;
+  } catch (e) {
+    console.warn('webpush subscribe', e);
+    return false;
+  } finally {
+    pushSubscribeInFlight = false;
+  }
+}
+
 async function showSystemNotification(title, body, data) {
   const opts = {
     body: body || '',
@@ -1030,16 +1116,17 @@ async function showSystemNotification(title, body, data) {
   } catch (e) {}
 }
 
-function stopPaymentWatch() {
+function stopPaymentWatch(clearStored) {
   if (paymentWatchTimer) {
     clearInterval(paymentWatchTimer);
     paymentWatchTimer = null;
   }
   paymentWatchStopAt = 0;
+  if (clearStored) clearPaymentWatch();
 }
 
 function startPaymentWatch(opts) {
-  stopPaymentWatch();
+  stopPaymentWatch(false);
   const cfg = opts || {};
   const type = cfg.type || 'qris';
   const qrisId = String(cfg.qrisId || '');
@@ -1059,12 +1146,25 @@ function startPaymentWatch(opts) {
     return;
   }
 
+  // Simpan agar kalau PWA ditutup lalu dibuka lagi, watch + notif tetap jalan
+  savePaymentWatch({
+    type: type,
+    qrisId: qrisId,
+    transactionId: transactionId,
+    vano: vano,
+    amount: amount,
+    aaList: aaList,
+    baselineUnpaid: baselineUnpaid,
+    baselineSaldo: baselineSaldo,
+  });
+
   ensureNotifyPermission();
+  ensureWebPushSubscription();
 
   const tick = async () => {
     if (checking) return;
     if (Date.now() > paymentWatchStopAt) {
-      stopPaymentWatch();
+      stopPaymentWatch(true);
       return;
     }
     checking = true;
@@ -1080,7 +1180,7 @@ function startPaymentWatch(opts) {
         });
         const json = await res.json();
         if (json && json.paid) {
-          stopPaymentWatch();
+          stopPaymentWatch(true);
           const nominal = formatRp(json.data?.amount || amount);
           const title = 'Pembayaran berhasil';
           const body = 'Top up ' + nominal + ' sudah masuk. Saldo VA akan diperbarui.';
@@ -1110,7 +1210,7 @@ function startPaymentWatch(opts) {
         const unpaidOk = Number.isFinite(unpaid) && unpaid <= (baselineUnpaid - Math.max(500, amount * 0.85) + 1);
         const saldoOk = Number.isFinite(saldo) && saldo >= (baselineSaldo + Math.max(500, amount * 0.85));
         if (json?.status && (unpaidOk || saldoOk)) {
-          stopPaymentWatch();
+          stopPaymentWatch(true);
           const title = 'Pembayaran berhasil';
           const body = 'Pembayaran ' + formatRp(amount) + ' sudah diterima.';
           await showSystemNotification(title, body, { tag: 'va-' + Date.now() });
@@ -1128,6 +1228,17 @@ function startPaymentWatch(opts) {
   paymentWatchTimer = setInterval(tick, intervalMs);
   setTimeout(tick, 1500);
 }
+
+@if(isset($result) && !empty($result['status']))
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () { ensureWebPushSubscription(); }, 1500);
+  // Resume watch setelah PWA dibuka lagi (notif tanpa harus generate ulang)
+  setTimeout(function () {
+    const pending = loadPaymentWatch();
+    if (pending) startPaymentWatch(pending);
+  }, 2000);
+});
+@endif
 
 function openMultiAkunModal() {
   const modal = document.getElementById('multiAkunModal');

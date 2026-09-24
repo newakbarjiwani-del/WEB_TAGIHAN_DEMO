@@ -3,7 +3,7 @@
 Dokumentasi lengkap untuk menyalin project ini sebagai **base** white-label tagihan PWA ke sekolah / client baru, sampai login, VA/QRIS, callback bayar, dan **notifikasi sistem Fase 1** berjalan.
 
 > File ini: `docs/SETUP-MASTER.md`  
-> Notifikasi: **Fase 1 saja** (tampil saat PWA dibuka / tab aktif setelah generate QRIS/VA). Tidak ada Web Push saat app tertutup.
+> Notifikasi: **Web Push** (server kirim saat lunas) + **resume watch** saat PWA dibuka lagi (cadangan jika push tertunda di HP).
 
 ---
 
@@ -284,40 +284,33 @@ Callback QRIS harus mengarah ke URL `pushNotif.php` yang sama (sudah dikonfigura
 
 ---
 
-## 8. Notifikasi sistem (Fase 1)
+## 8. Notifikasi sistem (Web Push + resume saat buka PWA)
 
 ### Cara kerja
 
-1. User login di PWA, generate QRIS (atau VA).
-2. Browser meminta izin **Notification** (satu kali).
-3. JS `startPaymentWatch()` di `resources/views/index3.blade.php` **poll** endpoint `/cek-status-pembayaran` tiap ~4 detik (maks ~12 menit) selama halaman/PWA terbuka.
-4. Setelah bank callback → DB `paid` → poll mendeteksi `paid: true`.
-5. Halaman memanggil `reg.showNotification(...)` lewat **Service Worker** (`public/sw.js`) → notifikasi sistem HP/desktop.
-6. Toast UI + reload halaman.
+1. Setelah login, PWA **subscribe** Web Push (VAPID) → endpoint disimpan di tabel `push_subscriptions`.
+2. User generate QRIS/VA → status watch disimpan di `localStorage` (12 menit).
+3. Saat QRIS lunas, `demoInstallment.php` memanggil `POST /push/notify-paid` → server kirim Web Push.
+4. Service Worker (`public/sw.js`) menerima event `push` → tampilkan notifikasi sistem.
+5. **Cadangan:** kalau PWA ditutup lalu dibuka lagi, watch di-resume dari `localStorage` → poll status → notif + toast (meski push tertunda di HP).
 
-### Syarat agar notif muncul
+### Syarat
 
 | Syarat | Keterangan |
 |--------|------------|
-| HTTPS atau localhost | Notification API |
-| Izin notifikasi **Granted** | Bukan blocked di setting browser/HP |
-| PWA / tab **sedang terbuka** (atau baru dibuka lagi dengan watch masih jalan / user generate ulang) | Fase 1 **tidak** mengirim push saat app benar-benar tertutup |
-| SW terdaftar | `BRAND_PWA_ENABLED=true`, file `/sw.js` |
-| Status DB benar-benar `paid` | Callback islamic_center + forward WS sukses |
+| HTTPS | Wajib untuk Push + Notification |
+| `VAPID_*` + `WEBPUSH_NOTIFY_SECRET` di `.env` Laravel | `php artisan webpush:vapid` atau `node scripts/generate-vapid.cjs` |
+| `WEBPUSH_NOTIFY_URL` + `WEBPUSH_NOTIFY_SECRET` di `islamic_center/.env` | URL = `https://DOMAIN/push/notify-paid` |
+| Tabel `push_subscriptions` di DB tagihan | `database/sql/push_subscriptions.sql` atau migrate |
+| Izin notifikasi Granted | Satu kali di browser/HP |
+| `composer require minishlink/web-push` | Package kirim push |
 
-### Alur yang diharapkan untuk user
+### File terkait
 
-- Ideal: PWA tetap terbuka setelah scan QR → notif muncul otomatis.
-- Jika PWA ditutup: setelah dibuka lagi dan user generate/cek pembayaran (atau watch aktif), status paid terbaca → notif + toast.
-
-Tidak perlu VAPID, `push_subscriptions`, atau `minishlink/web-push`.
-
-### File terkait notifikasi
-
-- `resources/views/index3.blade.php` — `ensureNotifyPermission`, `showSystemNotification`, `startPaymentWatch`
-- `public/sw.js` — cache PWA + `notificationclick`
-- `app/Http/Controllers/TagihanController.php` — `cekStatusPembayaran`
-- Route: `cek-status-pembayaran`
+- `app/Services/WebPushService.php`, `WebPushController.php`
+- `resources/views/index3.blade.php` — subscribe + paymentWatch + localStorage resume
+- `public/sw.js` — listener `push` + `notificationclick`
+- `islamic_center/qris/pushNotif/demoInstallment.php` — trigger notify saat `newly_paid`
 
 ---
 

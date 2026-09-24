@@ -26,6 +26,8 @@ Route::get('/manifest.webmanifest', function () {
         'dir' => 'ltr',
         'categories' => ['finance', 'education', 'utilities'],
         'prefer_related_applications' => false,
+        // Wajib untuk Chrome/FCM Web Push di Android
+        'gcm_sender_id' => '103953800507',
         'icons' => [
             [
                 'src' => asset($brand['icon_192']),
@@ -129,6 +131,15 @@ Route::post('/', [TagihanController::class, 'cek2'])->name('tagihan.cek2');
 Route::post('/multi-akun/tambah', [MultiAccountController::class, 'tambah'])->name('multi-akun.tambah');
 Route::post('/multi-akun/switch', [MultiAccountController::class, 'switch'])->name('multi-akun.switch');
 Route::post('/multi-akun/hapus', [MultiAccountController::class, 'hapus'])->name('multi-akun.hapus');
+
+Route::get('/push/vapid-public-key', [\App\Http\Controllers\WebPushController::class, 'vapidPublicKey'])
+    ->name('push.vapid');
+Route::post('/push/subscribe', [\App\Http\Controllers\WebPushController::class, 'subscribe'])
+    ->name('push.subscribe');
+Route::post('/push/unsubscribe', [\App\Http\Controllers\WebPushController::class, 'unsubscribe'])
+    ->name('push.unsubscribe');
+Route::post('/push/notify-paid', [\App\Http\Controllers\WebPushController::class, 'notifyPaid'])
+    ->name('push.notify-paid');
 
 Route::get('/tagihan/view', [TagihanController::class, 'tagihanView'])->name('tagihan.view');
 

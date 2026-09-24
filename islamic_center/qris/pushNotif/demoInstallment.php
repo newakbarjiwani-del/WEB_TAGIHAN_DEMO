@@ -5,11 +5,102 @@
  *
  * Dari pushNotif.php: $token, $transactionQrId, $vano, $amount,
  * $transactionId, $accountNo, $description, $responseTimestamp
- *
- * Notifikasi sistem ke user: Fase 1 (poll di PWA saat dibuka) — tidak ada Web Push di sini.
  */
 
 $forwardBase = 'http://103.23.103.43/sikeu_ws_mysql/DEMO_INSTALLMENT/QRIS.php?token=';
+
+// Baca islamic_center/.env (bukan Laravel — getenv saja tidak cukup)
+if (! function_exists('di_load_dotenv')) {
+    function di_load_dotenv(string $path): void
+    {
+        if (! is_file($path) || ! is_readable($path)) {
+            return;
+        }
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (! is_array($lines)) {
+            return;
+        }
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#' || ! str_contains($line, '=')) {
+                continue;
+            }
+            [$name, $value] = explode('=', $line, 2);
+            $name = trim($name);
+            $value = trim($value);
+            $value = trim($value, "\"'");
+            if ($name === '') {
+                continue;
+            }
+            if (getenv($name) === false) {
+                putenv($name.'='.$value);
+                $_ENV[$name] = $value;
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+}
+
+di_load_dotenv(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'.env');
+
+// Fase 2 Web Push — URL publik Laravel + secret (isi di islamic_center/.env)
+$webPushNotifyUrl = getenv('WEBPUSH_NOTIFY_URL') ?: ($_ENV['WEBPUSH_NOTIFY_URL'] ?? '');
+$webPushNotifySecret = getenv('WEBPUSH_NOTIFY_SECRET') ?: ($_ENV['WEBPUSH_NOTIFY_SECRET'] ?? '');
+
+if (! function_exists('di_notify_webpush')) {
+    /**
+     * Best-effort: kirim Web Push ke browser yang sudah subscribe (tab boleh tertutup).
+     *
+     * @return array{ok:bool,http_code:int,body:?string,error:?string}
+     */
+    function di_notify_webpush(string $url, string $secret, array $payload): array
+    {
+        $out = ['ok' => false, 'http_code' => 0, 'body' => null, 'error' => null];
+        if ($url === '' || $secret === '') {
+            $out['error'] = 'WEBPUSH_NOTIFY_URL / SECRET kosong';
+
+            return $out;
+        }
+
+        try {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 12,
+                CURLOPT_CONNECTTIMEOUT => 6,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                    'X-WebPush-Secret: '.$secret,
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+            $body = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $error = curl_error($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            $out['http_code'] = $httpCode;
+            $out['body'] = is_string($body) ? substr($body, 0, 500) : null;
+            if ($errno) {
+                $out['error'] = $error ?: ('curl '.$errno);
+
+                return $out;
+            }
+            $out['ok'] = ($httpCode >= 200 && $httpCode < 300);
+
+            return $out;
+        } catch (\Throwable $e) {
+            $out['error'] = $e->getMessage();
+            error_log('demoInstallment webpush: '.$e->getMessage());
+
+            return $out;
+        }
+    }
+}
 
 if (! function_exists('di_write_push_log')) {
     /**
@@ -174,6 +265,7 @@ $trxId = isset($transactionId) ? (string) $transactionId : null;
 $tokenRaw = isset($token) ? (string) $token : '';
 $forwardUrl = $forwardBase.$tokenRaw;
 $paidAt = ! empty($responseTimestamp) ? (string) $responseTimestamp : date('Y-m-d H:i:s');
+$webPushResult = null;
 
 $requestSnapshot = [
     'vano' => $vanoVal,
@@ -195,6 +287,24 @@ $paymentId = $mark['payment_id'];
 $custid = $mark['custid'];
 $nocust = $mark['nocust'];
 $markResult = $mark['result'];
+
+// Fase 2: notifikasi Web Push saat baru lunas (tab boleh tertutup)
+if ($markResult === 'newly_paid') {
+    $webPushResult = di_notify_webpush($webPushNotifyUrl, $webPushNotifySecret, [
+        'secret' => $webPushNotifySecret,
+        'vano' => $vanoVal,
+        'nocust' => $nocust,
+        'amount' => $amountVal,
+        'qris_id' => $qrisId,
+        'transaction_id' => $trxId,
+        'title' => 'Pembayaran berhasil',
+        'body' => is_numeric($amountVal)
+            ? ('Top up Rp '.number_format((float) $amountVal, 0, ',', '.').' sudah masuk. Saldo VA diperbarui.')
+            : 'Pembayaran QRIS berhasil. Saldo VA diperbarui.',
+    ]);
+    $requestSnapshot['webpush'] = $webPushResult;
+    error_log('demoInstallment webpush result: '.json_encode($webPushResult, JSON_UNESCAPED_UNICODE));
+}
 
 // 2) Forward token ke DEMO_INSTALLMENT
 $ch = curl_init($forwardUrl);
