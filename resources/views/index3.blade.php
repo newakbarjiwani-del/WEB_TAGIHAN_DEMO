@@ -1091,12 +1091,33 @@ async function ensureWebPushSubscription() {
 }
 
 async function showSystemNotification(title, body, data) {
+  const tag = (data && data.tag) || 'pembayaran-sukses';
+  const lockKey = 'tagihan_notif_' + tag;
+
+  // Hindari dobel: Web Push SW + poll halaman
+  try {
+    if (localStorage.getItem(lockKey)) return;
+  } catch (e) {}
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.getNotifications({ tag: tag });
+      if (existing && existing.length) {
+        try { localStorage.setItem(lockKey, '1'); } catch (e) {}
+        return;
+      }
+    }
+  } catch (e) {}
+
+  try { localStorage.setItem(lockKey, '1'); } catch (e) {}
+
   const opts = {
     body: body || '',
     icon: brandIconUrl,
     badge: brandIconUrl,
-    tag: (data && data.tag) || 'pembayaran-sukses',
-    renotify: true,
+    tag: tag,
+    renotify: false,
     requireInteraction: false,
     data: Object.assign({ url: '/' }, data || {}),
   };
@@ -1114,6 +1135,43 @@ async function showSystemNotification(title, body, data) {
       new Notification(title, opts);
     }
   } catch (e) {}
+}
+
+/** System notif hanya dari Web Push bila sudah subscribe; poll hanya toast. Fallback lokal jika push tidak datang. */
+async function notifyPaidUi(title, body, tag) {
+  notifyOk(title, body);
+  const lockKey = 'tagihan_notif_' + tag;
+  try {
+    if (localStorage.getItem(lockKey)) return;
+  } catch (e) {}
+
+  let hasPushSub = false;
+  try {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.getNotifications({ tag: tag });
+      if (existing && existing.length) {
+        try { localStorage.setItem(lockKey, '1'); } catch (e) {}
+        return;
+      }
+      hasPushSub = !!(await reg.pushManager.getSubscription());
+    }
+  } catch (e) {}
+
+  if (hasPushSub) {
+    // Beri waktu Web Push tampil; kalau tidak ada, baru tampilkan lokal sekali
+    await new Promise(function (r) { setTimeout(r, 2000); });
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.getNotifications({ tag: tag });
+      if (existing && existing.length) {
+        try { localStorage.setItem(lockKey, '1'); } catch (e) {}
+        return;
+      }
+    } catch (e) {}
+  }
+
+  await showSystemNotification(title, body, { tag: tag });
 }
 
 function stopPaymentWatch(clearStored) {
@@ -1184,10 +1242,8 @@ function startPaymentWatch(opts) {
           const nominal = formatRp(json.data?.amount || amount);
           const title = 'Pembayaran berhasil';
           const body = 'Top up ' + nominal + ' sudah masuk. Saldo VA akan diperbarui.';
-          await showSystemNotification(title, body, {
-            tag: 'qris-' + (qrisId || transactionId || vano || Date.now())
-          });
-          notifyOk(title, body);
+          const tag = 'qris-' + (qrisId || transactionId || vano || Date.now());
+          await notifyPaidUi(title, body, tag);
           const badge = document.querySelector('.qris-badge');
           if (badge) {
             badge.textContent = 'paid';
@@ -1213,8 +1269,7 @@ function startPaymentWatch(opts) {
           stopPaymentWatch(true);
           const title = 'Pembayaran berhasil';
           const body = 'Pembayaran ' + formatRp(amount) + ' sudah diterima.';
-          await showSystemNotification(title, body, { tag: 'va-' + Date.now() });
-          notifyOk(title, body);
+          await notifyPaidUi(title, body, 'va-' + (aaList[0] || Date.now()));
           setTimeout(() => { window.location.reload(); }, 1800);
         }
       }

@@ -122,7 +122,7 @@ class WebPushService
             'body' => $body,
             'icon' => $iconPath,
             'badge' => $iconPath,
-            'tag' => $data['tag'] ?? ('qris-paid-'.($data['qris_id'] ?? $data['transaction_id'] ?? time())),
+            'tag' => $data['tag'] ?? ('qris-'.($data['qris_id'] ?? $data['transaction_id'] ?? time())),
             'url' => $data['url'] ?? '/',
             'data' => [
                 'qris_id' => $data['qris_id'] ?? null,

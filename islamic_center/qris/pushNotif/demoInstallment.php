@@ -297,6 +297,7 @@ if ($markResult === 'newly_paid') {
         'amount' => $amountVal,
         'qris_id' => $qrisId,
         'transaction_id' => $trxId,
+        'tag' => 'qris-'.($qrisId !== '' ? $qrisId : ($trxId ?: time())),
         'title' => 'Pembayaran berhasil',
         'body' => is_numeric($amountVal)
             ? ('Top up Rp '.number_format((float) $amountVal, 0, ',', '.').' sudah masuk. Saldo VA diperbarui.')

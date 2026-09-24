@@ -1,5 +1,5 @@
 /* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v8';
+const CACHE_VERSION = 'tagihan-pwa-v9';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -106,8 +106,8 @@ self.addEventListener('push', (event) => {
   const options = {
     body,
     tag,
-    renotify: true,
-    requireInteraction: true,
+    renotify: false,
+    requireInteraction: false,
     silent: false,
     data: Object.assign({ url: targetUrl }, payload.data || {}, { url: targetUrl }),
   };
