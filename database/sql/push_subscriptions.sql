@@ -1,11 +1,10 @@
--- Tabel subscription Web Push (Fase 2)
--- Jalankan di DB demo_smartpayment_installment (103.23.103.36)
+-- Tabel subscription Web Push (notifikasi sistem PWA)
+-- Jalankan di DB sekolah / WS / billing (sama TAGIHAN_DB_*), bukan DB Laravel lokal.
+-- Unique pakai endpoint_hash karena URL endpoint bisa > 191 chars.
 
-DROP TABLE IF EXISTS `push_subscriptions`;
-
-CREATE TABLE `push_subscriptions` (
+CREATE TABLE IF NOT EXISTS `push_subscriptions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `endpoint_hash` varchar(64) NOT NULL,
+  `endpoint_hash` varchar(64) NOT NULL COMMENT 'sha256(endpoint)',
   `endpoint` text NOT NULL,
   `public_key` varchar(255) DEFAULT NULL,
   `auth_token` varchar(255) DEFAULT NULL,
@@ -13,9 +12,9 @@ CREATE TABLE `push_subscriptions` (
   `nocust` varchar(50) DEFAULT NULL,
   `vano` varchar(80) DEFAULT NULL,
   `user_agent` varchar(255) DEFAULT NULL,
-  `last_used_at` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
+  `last_used_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `push_subscriptions_endpoint_hash_unique` (`endpoint_hash`),
   KEY `push_subscriptions_nocust_index` (`nocust`),

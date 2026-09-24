@@ -356,6 +356,13 @@ class TagihanController extends Controller
 
     public function buatVA(Request $request)
     {
+        if (! config('brand.payment_can_pay_bills')) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Mode saldo aktif: VA tidak dipakai untuk bayar tagihan langsung. Transfer ke nomor VA Anda untuk isi saldo.',
+            ], 403);
+        }
+
         $request->validate([
             'custid' => 'required',
             'nocust' => 'required|string',

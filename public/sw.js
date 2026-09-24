@@ -1,5 +1,5 @@
-/* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v10';
+/* Tagihan PWA service worker — jangan cache HTML (CSRF / sesi) */
+const CACHE_VERSION = 'tagihan-pwa-v11';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -34,6 +34,7 @@ function isApiOrForm(request, url) {
   if (url.pathname.startsWith('/pembayaran')) return true;
   if (url.pathname.startsWith('/list-tahun-akademik')) return true;
   if (url.pathname.startsWith('/push/')) return true;
+  if (url.pathname.startsWith('/csrf-token')) return true;
   return false;
 }
 
@@ -45,22 +46,17 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (isApiOrForm(request, url)) return;
 
+  // Navigate = halaman Blade berisi CSRF — selalu network-first, JANGAN cache HTML
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return cached || caches.match(OFFLINE_URL);
-        })
+      fetch(request, { cache: 'no-store' }).catch(async () => {
+        return (await caches.match(OFFLINE_URL)) || Response.error();
+      })
     );
     return;
   }
 
+  // Aset statis saja yang boleh di-cache
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request)

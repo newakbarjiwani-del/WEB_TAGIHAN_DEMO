@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Session\TokenMismatchException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -25,6 +26,21 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        $this->renderable(function (TokenMismatchException $e, $request) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Sesi berakhir. Muat ulang halaman lalu coba lagi.',
+                    'code' => 419,
+                ], 419);
+            }
+
+            return redirect()
+                ->to('/')
+                ->with('error', 'Sesi berakhir. Silakan login / kirim ulang.')
+                ->withInput($request->except(['password', '_token', 'password_confirmation']));
         });
     }
 }

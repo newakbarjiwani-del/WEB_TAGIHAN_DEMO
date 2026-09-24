@@ -10,6 +10,7 @@ Isi tutorial:
 
 - Cara copy sebagai base client baru
 - Setup Laravel, brand, DEMO_WS, islamic_center
+- **Query SQL tabel tambahan** (multi akun, QRIS, Web Push) — `database/sql/pwa_extra_tables.sql`
 - Notifikasi: Web Push + resume saat PWA dibuka lagi
 - Checklist uji & troubleshooting
 

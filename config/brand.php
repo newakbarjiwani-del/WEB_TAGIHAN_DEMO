@@ -35,11 +35,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Metode pembayaran
+    | Model pembayaran
     |--------------------------------------------------------------------------
-    | payment_qris = false → hanya VA untuk bayar tagihan
-    | payment_qris = true  → tombol Top up via QRIS (isi saldo, tanpa pilih tagihan)
+    | BRAND_PAYMENT_MODEL:
+    |   1 / bills  → pilih tagihan + bayar lewat VA (nominal, centang)
+    |   2 / saldo  → tagihan hanya informasi; VA tampil sebagai kartu isi saldo
+    |                (mirip top up QRIS). Default: 2
+    |
+    | payment_qris = true → tombol Top up saldo via QRIS (boleh digabung model 1/2)
     */
+    'payment_model' => (static function () {
+        $raw = strtolower(trim((string) env('BRAND_PAYMENT_MODEL', '2')));
+        if (in_array($raw, ['1', 'bills', 'bill', 'tagihan'], true)) {
+            return 'bills';
+        }
+
+        return 'saldo'; // 2, saldo, info, info_only, …
+    })(),
+    'payment_can_pay_bills' => (static function () {
+        $raw = strtolower(trim((string) env('BRAND_PAYMENT_MODEL', '2')));
+
+        return in_array($raw, ['1', 'bills', 'bill', 'tagihan'], true);
+    })(),
     'payment_qris' => filter_var(env('BRAND_PAYMENT_QRIS', false), FILTER_VALIDATE_BOOLEAN),
     'qris' => [
         'server_url' => env('QRIS_SERVER_URL', 'http://103.23.103.43/qris/lazizmu_diy/server.php'),

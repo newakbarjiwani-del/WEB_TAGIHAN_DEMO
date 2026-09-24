@@ -18,6 +18,8 @@
     'pwa' => (bool) ($brand['pwa']['enabled'] ?? true),
     'showGuide' => (bool) ($brand['show_guide'] ?? true),
     'paymentQris' => (bool) ($brand['payment_qris'] ?? false),
+    'paymentModel' => (string) ($brand['payment_model'] ?? 'saldo'),
+    'canPayBills' => (bool) ($brand['payment_can_pay_bills'] ?? false),
   ];
 @endphp
 <title>{{ $brand['tagline'] }} | {{ $brand['name'] }}</title>

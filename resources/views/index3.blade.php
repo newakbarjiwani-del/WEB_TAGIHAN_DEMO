@@ -12,6 +12,43 @@
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
   } catch (e) {}
 })();
+window.__csrfUrl = @json(route('csrf-token'));
+window.refreshCsrfToken = async function () {
+  try {
+    const res = await fetch(window.__csrfUrl, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    const json = await res.json().catch(function () { return {}; });
+    const token = json && json.token ? String(json.token) : '';
+    if (!token) return '';
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) meta.setAttribute('content', token);
+    document.querySelectorAll('input[name="_token"]').forEach(function (el) {
+      el.value = token;
+    });
+    window.__csrfToken = token;
+    return token;
+  } catch (e) {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  }
+};
+window.getCsrfToken = function () {
+  return window.__csrfToken
+    || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+    || '';
+};
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible') window.refreshCsrfToken();
+});
+window.addEventListener('pageshow', function (ev) {
+  // bfcache / kembali ke PWA
+  window.refreshCsrfToken();
+});
+setInterval(function () { window.refreshCsrfToken(); }, 10 * 60 * 1000);
+</script>
+<script>
 window.__pwaDeferredPrompt = null;
 window.__pwaInstallReady = false;
 window.addEventListener('beforeinstallprompt', function (e) {
@@ -193,7 +230,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         <div class="siswa-head">
           <div>
             <div class="section-title">Data siswa</div>
-            <p class="section-lead">Identitas akun aktif dan saldo virtual account.</p>
+            <p class="section-lead">Akun yang sedang aktif.</p>
           </div>
           <div class="tbl-controls action-group">
             <button type="button" class="ui-btn ui-btn-secondary ui-btn-sm" id="btnMultiAkun" onclick="openMultiAkunModal()">Multi akun</button>
@@ -211,42 +248,70 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
               <span>{{ $result['data']['jenjang'] ?? '-' }}</span>
               <span class="dot">·</span>
               <span>{{ ($academic_year ?? 'all') === 'all' ? 'Semua angkatan' : $academic_year }}</span>
+              <span class="dot">·</span>
+              <span class="profile-nis-inline">NIS {{ $result['data']['no_cust'] ?? $result['data']['num2nd'] ?? '-' }}</span>
             </p>
-            <div class="profile-ids">
-              <div class="pid">
-                <span>NOVA</span>
-                <b class="sf-nova" title="{{ $result['data']['va_number'] ?? '-' }}">{{ $result['data']['va_number'] ?? '-' }}</b>
-              </div>
-              <div class="pid">
-                <span>NIS / Userlogin</span>
-                <b title="{{ $result['data']['no_cust'] ?? $result['data']['num2nd'] ?? '-' }}">{{ $result['data']['no_cust'] ?? $result['data']['num2nd'] ?? '-' }}</b>
-              </div>
-            </div>
           </div>
           <div class="profile-saldo">
             <span>Saldo</span>
             <strong id="saldoVaText">Rp {{ number_format($result['data']['saldo'] ?? 0, 0, ',', '.') }}</strong>
-            <em class="saldo-chip">Siap pakai</em>
           </div>
         </div>
 
-        @if(config('brand.payment_qris'))
-        <div class="topup-panel">
-          <div class="topup-copy">
-            <p class="topup-kicker">Isi saldo</p>
-            <p class="topup-title">Top up saldo</p>
-            <p class="topup-hint">Tidak perlu pilih tagihan. Masukkan nominal, lalu bayar dengan scan QRIS.</p>
+        @php
+          $canPayBills = (bool) config('brand.payment_can_pay_bills');
+          $qrisOn = (bool) config('brand.payment_qris');
+          $novaDisplay = $result['data']['va_number'] ?? \App\Http\Controllers\TagihanController::formatNova($result['data']['no_cust'] ?? $result['data']['num2nd'] ?? '');
+          $showTopupHub = !$canPayBills || $qrisOn;
+        @endphp
+
+        @if($showTopupHub)
+        <div class="topup-hub" id="topupHub">
+          <div class="topup-hub-head">
+            <p class="topup-hub-kicker">Isi saldo</p>
+            <p class="topup-hub-title">Pilih cara top up</p>
+            <p class="topup-hub-desc">Transfer ke VA{{ $qrisOn ? ' atau bayar QRIS lewat e-wallet / m-banking' : '' }}.</p>
           </div>
-          <div class="topup-actions">
-            <button type="button" class="ui-btn ui-btn-secondary btn-history-qris" id="btnHistoryTopupQris" onclick="openHistoryTopupQris()">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              History
-            </button>
-            <button type="button" class="ui-btn ui-btn-primary btn-topup-qris" id="btnTopupQris" onclick="showTopupQrisModal()">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-              Top up saldo
-            </button>
+
+          @if(!$canPayBills)
+          <div class="topup-method" id="vaSaldoCard">
+            <div class="topup-method-head">
+              <span class="topup-method-tag topup-method-tag-va">VA</span>
+              <div class="topup-method-copy">
+                <p class="topup-method-name">Virtual Account</p>
+                <p class="topup-method-hint">Transfer dari bank mana saja ke nomor di bawah</p>
+              </div>
+            </div>
+            <div class="topup-method-va">
+              <div class="topup-va-num">
+                <strong class="sf-nova" id="vaSaldoNumberText">{{ $novaDisplay ?: '-' }}</strong>
+              </div>
+              <button type="button" class="ui-btn ui-btn-secondary ui-btn-sm btn-copy-va-saldo" onclick="copyVaSaldoCard()" {{ ($novaDisplay && $novaDisplay !== '-') ? '' : 'disabled' }} aria-label="Salin nomor VA">
+                Salin
+              </button>
+            </div>
           </div>
+          @endif
+
+          @if($qrisOn)
+          <div class="topup-method topup-method-qris">
+            <div class="topup-method-head">
+              <span class="topup-method-tag topup-method-tag-qris">QRIS</span>
+              <div class="topup-method-copy">
+                <p class="topup-method-name">Bayar dengan QRIS</p>
+                <p class="topup-method-hint">Scan di e-wallet atau m-banking (GoPay, OVO, Dana, BRImo, BCA Mobile, dll.)</p>
+              </div>
+            </div>
+            <div class="topup-method-actions">
+              <button type="button" class="ui-btn ui-btn-primary btn-topup-qris" id="btnTopupQris" onclick="showTopupQrisModal()">
+                Top up QRIS
+              </button>
+              <button type="button" class="ui-btn ui-btn-secondary btn-history-qris" id="btnHistoryTopupQris" onclick="openHistoryTopupQris()">
+                History
+              </button>
+            </div>
+          </div>
+          @endif
         </div>
         @endif
       </div>
@@ -258,11 +323,11 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         $hasTagihanLunas = is_array($tagihanLunasList) && count($tagihanLunasList) > 0;
       @endphp
 
-      <div class="card panel panel-bills">
+      <div class="card panel panel-bills {{ $canPayBills ? '' : 'panel-bills-info' }}">
         <div class="tbl-bar">
           <div>
             <div class="tbl-title">Tagihan aktif</div>
-            <p class="section-lead">{{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }} · pilih tagihan lalu bayar</p>
+            <p class="section-lead">{{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }} · {{ $canPayBills ? 'pilih tagihan lalu bayar' : 'informasi tagihan' }}</p>
           </div>
           <div class="tbl-controls">
             <label class="ctrl-label" for="tagihanPerPage">Tampil</label>
@@ -276,6 +341,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
           </div>
         </div>
         <div id="tagihanInfo" class="tbl-info"></div>
+        @if($canPayBills)
         <div class="tbl-wrap excel-wrap {{ $hasTagihanAktif ? '' : 'is-empty' }}">
           <table class="excel-tbl {{ $hasTagihanAktif ? '' : 'is-empty' }}">
             <thead>
@@ -335,8 +401,10 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         <label class="select-all-mobile">
           <input type="checkbox" class="chk" id="selectAllMobile" onclick="toggleSelectAll(this)"> Pilih semua
         </label>
-        <div class="card-list" id="tagihanCardList">
-          @forelse($result['data']['tagihan'] as $i => $tagih)
+        @endif
+
+        <div class="card-list {{ $canPayBills ? '' : 'card-list-info is-always-on' }}" id="tagihanCardList">
+          @forelse($tagihanAktifList as $i => $tagih)
           @php
             $bolehCicil = (int)($tagih['isINSTALLABLE'] ?? $tagih['isinstallable'] ?? $tagih['is_installment'] ?? 0) === 1;
             $sudahBayar = (int)($tagih['sudah_dibayar'] ?? 0);
@@ -344,10 +412,12 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
             $sisaTagih = (int)($tagih['sisa_tagihan'] ?? max(0, $totalTagih - $sudahBayar));
             $expRaw = $tagih['ExpDate'] ?? $tagih['expdate'] ?? null;
             $expLabel = (!empty($expRaw) && !str_starts_with((string) $expRaw, '0000-00-00'))
-              ? \Carbon\Carbon::parse($expRaw)->format('Y-m-d')
+              ? \Carbon\Carbon::parse($expRaw)->format('d M Y')
               : '-';
+            $namaTagihan = ucwords(str_replace('_', ' ', strtolower($tagih['nama_tagihan'] ?? '-')));
           @endphp
-          <article class="bill-card" data-index="{{ $i }}">
+          <article class="bill-card {{ $canPayBills ? '' : 'bill-card-info' }}" data-index="{{ $i }}">
+            @if($canPayBills)
             <div class="bill-card-top">
               <label class="bill-check">
                 <input type="checkbox" class="chk tagihan-checkbox" value="{{ $tagih['AA'] ?? '' }}" data-index="{{ $i }}" {{ $sisaTagih <= 0 ? 'disabled' : '' }}>
@@ -359,9 +429,10 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
                 <span class="badge badge-no-cicil">Tidak dicicil</span>
               @endif
             </div>
+            @endif
             <div class="bill-card-main">
-            <h3>{{ ucwords(str_replace('_', ' ', strtolower($tagih['nama_tagihan']))) }}</h3>
-            <p class="bill-amount">Rp {{ number_format($totalTagih, 0, ',', '.') }}</p>
+              <h3>{{ $namaTagihan }}</h3>
+              <p class="bill-amount">Rp {{ number_format($totalTagih, 0, ',', '.') }}</p>
             </div>
             <div class="bill-facts">
               <div class="bill-fact"><span>Periode</span><b>{{ $tagih['periode'] ?: '-' }}</b></div>
@@ -369,10 +440,12 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
               <div class="bill-fact"><span>Sisa</span><b>Rp {{ number_format($sisaTagih, 0, ',', '.') }}</b></div>
               <div class="bill-fact"><span>Dibayar</span><b>Rp {{ number_format($sudahBayar, 0, ',', '.') }}</b></div>
             </div>
+            @if($canPayBills)
             <div class="bill-pay-row">
               <label class="bill-pay-label" for="bayarCard{{ $i }}">Nominal bayar</label>
               <input id="bayarCard{{ $i }}" type="number" class="pay-input bayar-input" data-index="{{ $i }}" min="1" max="{{ $sisaTagih }}" value="0" disabled inputmode="numeric" aria-label="Nominal bayar">
             </div>
+            @endif
           </article>
           @empty
           <div class="empty-state">
@@ -391,7 +464,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
         </div>
         <div id="tagihanPagination" class="pagination"></div>
 
-        @if($hasTagihanAktif)
+        @if($canPayBills && $hasTagihanAktif)
         <div class="pay-dock">
           <p class="pay-note">Centang tagihan yang ingin dibayar. Tagihan non-cicil harus dilunasi sisa; cicilan tidak boleh melebihi sisa.</p>
           <div class="pay-summary" id="paySummary">
@@ -797,7 +870,19 @@ function getRows(id) {
   return el ? Array.from(el.querySelectorAll('tr[data-index]')) : [];
 }
 
+function getCardRows(id) {
+  const el = document.getElementById(id);
+  return el ? Array.from(el.querySelectorAll('[data-index]')) : [];
+}
+
+function getTagihanRows() {
+  const tableRows = getRows('tagihanTableBody');
+  if (tableRows.length) return { rows: tableRows, tableBodyId: 'tagihanTableBody' };
+  return { rows: getCardRows('tagihanCardList'), tableBodyId: null };
+}
+
 function syncCards(tableBodyId, rows) {
+  if (!tableBodyId) return;
   const cardList = document.getElementById(tableBodyId.replace('TableBody', 'CardList'));
   if (!cardList) return;
   const vis = {};
@@ -842,8 +927,8 @@ function renderPagination(id, totalPages, totalRows, showAll, getCurrent, goTo) 
 }
 
 function initTagihanPagination() {
-  const rows = getRows('tagihanTableBody');
-  if (rows.length) paginateRows(rows, tagihanPage, tagihanPerPageVal, tagihanAll, 'tagihanInfo', (tp, tr) => renderPagination('tagihanPagination', tp, tr, tagihanAll, () => tagihanPage, 'goToTagihanPage'), 'tagihanTableBody');
+  const { rows, tableBodyId } = getTagihanRows();
+  if (rows.length) paginateRows(rows, tagihanPage, tagihanPerPageVal, tagihanAll, 'tagihanInfo', (tp, tr) => renderPagination('tagihanPagination', tp, tr, tagihanAll, () => tagihanPage, 'goToTagihanPage'), tableBodyId);
 }
 
 function initLunasPagination() {
@@ -851,7 +936,11 @@ function initLunasPagination() {
   if (rows.length) paginateRows(rows, lunasPage, lunasPerPageVal, lunasAll, 'lunasInfo', (tp, tr) => renderPagination('lunasPagination', tp, tr, lunasAll, () => lunasPage, 'goToLunasPage'), 'lunasTableBody');
 }
 
-function goToTagihanPage(p) { tagihanPage = p; paginateRows(getRows('tagihanTableBody'), tagihanPage, tagihanPerPageVal, tagihanAll, 'tagihanInfo', (tp, tr) => renderPagination('tagihanPagination', tp, tr, tagihanAll, () => tagihanPage, 'goToTagihanPage'), 'tagihanTableBody'); }
+function goToTagihanPage(p) {
+  tagihanPage = p;
+  const { rows, tableBodyId } = getTagihanRows();
+  paginateRows(rows, tagihanPage, tagihanPerPageVal, tagihanAll, 'tagihanInfo', (tp, tr) => renderPagination('tagihanPagination', tp, tr, tagihanAll, () => tagihanPage, 'goToTagihanPage'), tableBodyId);
+}
 function goToLunasPage(p) { lunasPage = p; paginateRows(getRows('lunasTableBody'), lunasPage, lunasPerPageVal, lunasAll, 'lunasInfo', (tp, tr) => renderPagination('lunasPagination', tp, tr, lunasAll, () => lunasPage, 'goToLunasPage'), 'lunasTableBody'); }
 
 function changeTagihanPerPage() { tagihanPerPageVal = parseInt(document.getElementById('tagihanPerPage').value); tagihanPage = 1; tagihanAll = false; initTagihanPagination(); }
@@ -966,12 +1055,33 @@ window.addEventListener('click', e => {
   if (e.target.id === 'installModal') closeInstallModal();
 });
 
-document.getElementById('billForm').addEventListener('submit', e => {
+document.getElementById('billForm').addEventListener('submit', function (e) {
   if (turnstileEnabled && !turnstileToken) {
     e.preventDefault();
     notifyWarn('Verifikasi', 'Selesaikan verifikasi keamanan terlebih dahulu!');
     return;
   }
+  // Refresh CSRF dulu agar tidak 419 (sering di PWA / sesi lama)
+  if (!e.target.dataset.csrfOk) {
+    e.preventDefault();
+    const form = e.target;
+    const overlay = document.getElementById('loginCartoon');
+    if (overlay) {
+      overlay.hidden = false;
+      document.body.classList.add('login-busy');
+    }
+    const btn = document.getElementById('btnCekTagihan');
+    if (btn) btn.disabled = true;
+    Promise.resolve(window.refreshCsrfToken()).then(function () {
+      form.dataset.csrfOk = '1';
+      HTMLFormElement.prototype.submit.call(form);
+    }).catch(function () {
+      form.dataset.csrfOk = '1';
+      HTMLFormElement.prototype.submit.call(form);
+    });
+    return;
+  }
+  delete e.target.dataset.csrfOk;
   const overlay = document.getElementById('loginCartoon');
   if (!overlay) return;
   overlay.hidden = false;
@@ -1011,9 +1121,37 @@ const generateQrisUrl = @json(route('generate-qris'));
 const cekStatusPembayaranUrl = @json(route('cek-status-pembayaran'));
 const historyTopupQrisUrl = @json(route('history-topup-qris'));
 const paymentQrisEnabled = !!(window.__BRAND__ && window.__BRAND__.paymentQris);
+const paymentCanPayBills = !!(window.__BRAND__ && window.__BRAND__.canPayBills);
+const paymentModel = (window.__BRAND__ && window.__BRAND__.paymentModel) || 'saldo';
 const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
-const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+const csrfToken = () => (typeof window.getCsrfToken === 'function' ? window.getCsrfToken() : (document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''));
+
+async function apiFetch(url, options) {
+  const opts = Object.assign({ credentials: 'same-origin' }, options || {});
+  const headers = Object.assign({
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  }, opts.headers || {});
+  const method = String(opts.method || 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD') {
+    const t = await (window.refreshCsrfToken ? window.refreshCsrfToken() : Promise.resolve(csrfToken()));
+    if (t) headers['X-CSRF-TOKEN'] = t;
+  }
+  opts.headers = headers;
+  let res = await fetch(url, opts);
+  if (res.status === 419 && method !== 'GET' && method !== 'HEAD') {
+    const t2 = await (window.refreshCsrfToken ? window.refreshCsrfToken() : Promise.resolve(csrfToken()));
+    if (t2) headers['X-CSRF-TOKEN'] = t2;
+    opts.headers = headers;
+    res = await fetch(url, opts);
+    if (res.status === 419) {
+      if (typeof notifyWarn === 'function') notifyWarn('Sesi berakhir', 'Memuat ulang halaman…');
+      setTimeout(function () { window.location.reload(); }, 700);
+    }
+  }
+  return res;
+}
 const brandIconUrl = @json(asset(config('brand.icon_192')));
 const pushSubscribeUrl = @json(route('push.subscribe'));
 const pushVapidUrl = @json(route('push.vapid'));
@@ -1099,14 +1237,12 @@ async function ensureWebPushSubscription() {
     body.contentEncoding = 'aes128gcm';
     body.nocust = pushNocust || (siswaBayar && siswaBayar.no_cust) || '';
     body.vano = pushVano || (siswaBayar && (siswaBayar.va_number || siswaBayar.vano)) || '';
-    await fetch(pushSubscribeUrl, {
+    await apiFetch(pushSubscribeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
       },
-      credentials: 'same-origin',
       body: JSON.stringify(body),
     });
     return true;
@@ -1403,18 +1539,16 @@ function renderMultiAkunList(accounts) {
 
 function logoutAkun() {
   try { sessionStorage.clear(); } catch (e) {}
-  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   const form = document.getElementById('logoutForm');
   const goHome = () => window.location.replace('/');
-  fetch(@json(url('/logout')), {
-    method: 'POST',
-    headers: {
-      'X-CSRF-TOKEN': token,
-      'X-Requested-With': 'XMLHttpRequest',
-      'Accept': 'text/html'
-    },
-    credentials: 'same-origin',
-    redirect: 'follow'
+  Promise.resolve(window.refreshCsrfToken ? window.refreshCsrfToken() : null).then(function () {
+    return apiFetch(@json(url('/logout')), {
+      method: 'POST',
+      headers: {
+        'Accept': 'text/html'
+      },
+      redirect: 'follow'
+    });
   }).then(goHome).catch(() => {
     if (form) form.submit();
     else goHome();
@@ -1432,7 +1566,9 @@ function switchMultiAkun(noCust) {
   input.value = noCust;
   if (year) year.value = 'all';
   notify('Beralih akun...', 'info');
-  form.submit();
+  Promise.resolve(window.refreshCsrfToken ? window.refreshCsrfToken() : null).finally(function () {
+    HTMLFormElement.prototype.submit.call(form);
+  });
 }
 
 async function hapusMultiAkun(noCust, namaHint) {
@@ -1442,13 +1578,11 @@ async function hapusMultiAkun(noCust, namaHint) {
   if (!confirm('Hapus akun "' + label + '" dari multi akun?')) return;
 
   try {
-    const res = await fetch(multiAkunHapusUrl, {
+    const res = await apiFetch(multiAkunHapusUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
-        'X-Requested-With': 'XMLHttpRequest'
       },
       body: JSON.stringify({ no_cust: noCust })
     });
@@ -1500,13 +1634,11 @@ async function submitTambahMultiAkun(e) {
     btn.style.opacity = '.7';
   }
   try {
-    const res = await fetch(multiAkunTambahUrl, {
+    const res = await apiFetch(multiAkunTambahUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
-        'X-Requested-With': 'XMLHttpRequest'
       },
       body: JSON.stringify({
         no_cust: noCust,
@@ -1700,6 +1832,10 @@ document.addEventListener('input', e => {
 });
 
 function showPaymentModal() {
+  if (!paymentCanPayBills) {
+    notifyWarn('Mode saldo', 'Tagihan hanya informasi. Isi saldo lewat transfer VA atau QRIS.');
+    return;
+  }
   const selected = getSelectedTagihan();
   if (!selected.length) {
     notifyWarn('Belum ada tagihan', 'Pilih minimal satu tagihan untuk dibayar.');
@@ -1865,12 +2001,11 @@ async function prosesPembayaran() {
 }
 
 async function prosesGenerateVa(payload, total, nocust, btn) {
-    const res = await fetch(generateVaUrl, {
+    const res = await apiFetch(generateVaUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': csrfToken
       },
     body: JSON.stringify(payload)
     });
@@ -2081,12 +2216,11 @@ async function prosesTopupQris() {
 }
 
 async function prosesGenerateQris(payload, total, btn) {
-  const res = await fetch(generateQrisUrl, {
+  const res = await apiFetch(generateQrisUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'X-CSRF-TOKEN': csrfToken
     },
     body: JSON.stringify(payload)
   });
@@ -2222,6 +2356,15 @@ async function downloadQrisImage() {
 function copyVa() {
   const va = (document.getElementById('vaNumberText')?.textContent || '').trim();
   if (!va) return;
+  copyPlain(va);
+}
+
+function copyVaSaldoCard() {
+  const va = (document.getElementById('vaSaldoNumberText')?.textContent || '').trim();
+  if (!va || va === '-') {
+    notifyWarn('VA', 'Nomor VA belum tersedia.');
+    return;
+  }
   copyPlain(va);
 }
 

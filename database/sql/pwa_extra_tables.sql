@@ -1,41 +1,30 @@
 -- =============================================================================
--- Install tabel yang belum ada (MySQL 5.5+ compatible)
--- Jalankan di DB WS/billing: sidoarjo_raudhatul_jannah (bukan DB Laravel)
+-- WEB_TAGIHAN PWA — tabel tambahan (jalankan di DB sekolah / WS / billing)
+-- =============================================================================
+-- Bukan database Laravel lokal (kecuali TAGIHAN_DB_* mengarah ke DB yang sama).
+-- Contoh DB demo: demo_smartpayment_installment @ 103.23.103.36
 --
 -- Isi:
---   1) login_tokens
---   2) multi_account_groups + multi_account_members
---   3) mst_qris + mst_qris_item + log_qris_push
---   4) push_subscriptions (Web Push notifikasi PWA)
+--   A) multi_account_groups + multi_account_members  → Multi akun PWA
+--   B) login_tokens                                   → Login via link token (opsional)
+--   C) mst_qris + mst_qris_item + log_qris_push        → QRIS top up + audit callback
+--   D) push_subscriptions                             → Web Push notifikasi sistem
 --
--- Catatan: created_at / updated_at pakai DATETIME NULL (tanpa dual
--- CURRENT_TIMESTAMP) agar tidak kena error 1293 di MySQL lama.
--- Aplikasi mengisi waktu lewat NOW() saat insert/update.
+-- Cara jalankan (MySQL CLI / phpMyAdmin / HeidiSQL):
+--   USE nama_database_sekolah;
+--   SOURCE database/sql/pwa_extra_tables.sql;
+--
+-- Atau file per fitur:
+--   DEMO_WS_TAGIHAN_CICILAN/sql/multi_account_tables.sql
+--   DEMO_WS_TAGIHAN_CICILAN/sql/login_tokens.sql
+--   DEMO_WS_TAGIHAN_CICILAN/sql/qris_payment_tables.sql
+--   database/sql/push_subscriptions.sql
+--
+-- MySQL lama: DATETIME NULL (hindari error 1293 dual CURRENT_TIMESTAMP).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 1. login_tokens
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS login_tokens (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  token CHAR(64) NOT NULL COMMENT 'Hex 64 karakter; path URL GET /{token}',
-  no_cust VARCHAR(50) NOT NULL COMMENT 'NIS/VA sudah dinormalisasi (tanpa 757777)',
-  custid INT NULL COMMENT 'scctcust.CUSTID jika diketahui',
-  tahun_akademik VARCHAR(50) NOT NULL DEFAULT 'all',
-  expires_at DATETIME NOT NULL COMMENT 'Link mati setelah waktu ini',
-  used_at DATETIME NULL COMMENT 'NULL = belum dipakai; diisi saat login sukses',
-  created_by VARCHAR(100) NULL COMMENT 'Id/nama admin dari dashboard admin',
-  created_at DATETIME NULL,
-  updated_at DATETIME NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_login_tokens_token (token),
-  KEY idx_login_tokens_no_cust (no_cust),
-  KEY idx_login_tokens_expires (expires_at),
-  KEY idx_login_tokens_used (used_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- -----------------------------------------------------------------------------
--- 2. multi akun
+-- A. Multi akun PWA
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS multi_account_groups (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -47,7 +36,7 @@ CREATE TABLE IF NOT EXISTS multi_account_groups (
 CREATE TABLE IF NOT EXISTS multi_account_members (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   group_id BIGINT UNSIGNED NOT NULL,
-  no_cust VARCHAR(50) NOT NULL COMMENT 'VA/NIS sudah dinormalisasi',
+  no_cust VARCHAR(50) NOT NULL COMMENT 'VA/NIS sudah dinormalisasi (normalizeVa)',
   va_display VARCHAR(80) NULL COMMENT 'VA asli yang diinput user',
   nama VARCHAR(150) NULL,
   kelas VARCHAR(100) NULL,
@@ -64,14 +53,35 @@ CREATE TABLE IF NOT EXISTS multi_account_members (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -----------------------------------------------------------------------------
--- 3. QRIS payment
+-- B. Login token (link sekali pakai dari dashboard admin) — opsional
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS login_tokens (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  token CHAR(64) NOT NULL COMMENT 'Hex 64 karakter; path URL GET /{token}',
+  no_cust VARCHAR(50) NOT NULL COMMENT 'NIS/VA sudah dinormalisasi (tanpa prefix bank)',
+  custid INT NULL COMMENT 'CUSTID jika diketahui',
+  tahun_akademik VARCHAR(50) NOT NULL DEFAULT 'all',
+  expires_at DATETIME NOT NULL COMMENT 'Link mati setelah waktu ini',
+  used_at DATETIME NULL COMMENT 'NULL = belum dipakai; diisi saat login sukses',
+  created_by VARCHAR(100) NULL COMMENT 'Id/nama admin dari dashboard admin',
+  created_at DATETIME NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_login_tokens_token (token),
+  KEY idx_login_tokens_no_cust (no_cust),
+  KEY idx_login_tokens_expires (expires_at),
+  KEY idx_login_tokens_used (used_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- -----------------------------------------------------------------------------
+-- C. QRIS (generate + callback paid + audit)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS mst_qris (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   custid VARCHAR(64) NOT NULL,
   nocust VARCHAR(64) NOT NULL,
   namacust VARCHAR(191) NULL,
-  vano VARCHAR(64) NULL COMMENT '751000 + nocust (routing pushNotif)',
+  vano VARCHAR(64) NULL COMMENT 'prefix bank + nocust (routing pushNotif)',
   amount DECIMAL(18,2) NOT NULL DEFAULT 0,
   qris_id VARCHAR(128) NULL,
   qris_content TEXT NULL COMMENT 'rawQrData EMV QR string',
@@ -123,17 +133,17 @@ CREATE TABLE IF NOT EXISTS log_qris_push (
   custid VARCHAR(64) NULL,
   nocust VARCHAR(64) NULL,
   amount DECIMAL(18,2) NULL,
-  paid_flag TINYINT(1) NULL,
+  paid_flag TINYINT(1) NULL COMMENT '1=sudah paid setelah proses',
   processed VARCHAR(32) NULL
     COMMENT 'new_processing | already_processed | not_found | no_change | error',
   scctva_status VARCHAR(32) NULL
     COMMENT 'inserted | failed | skipped | null',
-  response_code VARCHAR(8) NULL,
+  response_code VARCHAR(8) NULL COMMENT '00 sukses / 01 gagal',
   response_message VARCHAR(255) NULL,
   http_code SMALLINT UNSIGNED NULL,
-  request_payload MEDIUMTEXT NULL,
-  response_payload MEDIUMTEXT NULL,
-  source VARCHAR(128) NULL DEFAULT 'qris/pushNotif/tagihanCicilan.php',
+  request_payload MEDIUMTEXT NULL COMMENT 'payload JWT decoded / raw callback',
+  response_payload MEDIUMTEXT NULL COMMENT 'JSON response ke gateway',
+  source VARCHAR(128) NULL DEFAULT 'qris/pushNotif/demoInstallment.php',
   ip_address VARCHAR(45) NULL,
   user_agent VARCHAR(255) NULL,
   created_at DATETIME NULL,
@@ -147,17 +157,19 @@ CREATE TABLE IF NOT EXISTS log_qris_push (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -----------------------------------------------------------------------------
--- 4. Web Push subscriptions (notifikasi PWA)
+-- D. Web Push (notifikasi sistem PWA)
+-- Unique pakai endpoint_hash (SHA-256) karena URL endpoint bisa > 191 chars
+-- (batas index MySQL 767 bytes / utf8mb4).
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  endpoint_hash VARCHAR(64) NOT NULL,
-  endpoint TEXT NOT NULL,
+  endpoint_hash VARCHAR(64) NOT NULL COMMENT 'sha256(endpoint) untuk unique pendek',
+  endpoint TEXT NOT NULL COMMENT 'URL push service browser (FCM/Mozilla/dll)',
   public_key VARCHAR(255) NULL,
   auth_token VARCHAR(255) NULL,
   content_encoding VARCHAR(32) NOT NULL DEFAULT 'aes128gcm',
-  nocust VARCHAR(50) NULL,
-  vano VARCHAR(80) NULL,
+  nocust VARCHAR(50) NULL COMMENT 'NIS/userlogin (normalizeVa)',
+  vano VARCHAR(80) NULL COMMENT 'VA penuh jika ada',
   user_agent VARCHAR(255) NULL,
   last_used_at DATETIME NULL,
   created_at DATETIME NULL,
@@ -167,3 +179,16 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   KEY push_subscriptions_nocust_index (nocust),
   KEY push_subscriptions_vano_index (vano)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- Verifikasi cepat (opsional)
+-- =============================================================================
+-- SHOW TABLES LIKE 'multi_account%';
+-- SHOW TABLES LIKE 'login_tokens';
+-- SHOW TABLES LIKE 'mst_qris%';
+-- SHOW TABLES LIKE 'log_qris_push';
+-- SHOW TABLES LIKE 'push_subscriptions';
+--
+-- SELECT COUNT(*) AS n FROM push_subscriptions;
+-- SELECT COUNT(*) AS n FROM multi_account_members;
+-- SELECT id, nocust, amount, status, paid_flag, paid_at FROM mst_qris ORDER BY id DESC LIMIT 10;

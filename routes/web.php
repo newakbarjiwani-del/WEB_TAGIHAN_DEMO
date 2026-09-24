@@ -60,6 +60,12 @@ Route::get('/manifest.webmanifest', function () {
     ]);
 });
 
+Route::get('/csrf-token', function () {
+    return response()
+        ->json(['token' => csrf_token()])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+})->name('csrf-token');
+
 Route::get('/', [TagihanController::class, 'home'])->name('home');
 
 Route::post('/logout', [TagihanController::class, 'logout'])->name('logout');
