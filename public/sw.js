@@ -1,5 +1,5 @@
-/* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v6';
+/* Tagihan PWA service worker — Fase 1 (cache + notifikasi lokal dari halaman) */
+const CACHE_VERSION = 'tagihan-pwa-v7';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -32,7 +32,6 @@ function isApiOrForm(request, url) {
   if (url.pathname.startsWith('/cek-status-pembayaran')) return true;
   if (url.pathname.startsWith('/pembayaran')) return true;
   if (url.pathname.startsWith('/list-tahun-akademik')) return true;
-  if (url.pathname.startsWith('/push/')) return true;
   return false;
 }
 
@@ -83,44 +82,6 @@ function absUrl(path) {
   return self.location.origin + (path.charAt(0) === '/' ? path : '/' + path);
 }
 
-self.addEventListener('push', (event) => {
-  let payload = {};
-  try {
-    if (event.data) {
-      try {
-        payload = event.data.json();
-      } catch (e1) {
-        payload = { body: String(event.data.text() || '') };
-      }
-    }
-  } catch (e) {
-    payload = {};
-  }
-
-  const title = payload.title || 'Pembayaran berhasil';
-  const body = payload.body || 'Transaksi QRIS berhasil diproses.';
-  const tag = payload.tag || ('qris-paid-' + Date.now());
-  const targetUrl = payload.url || (payload.data && payload.data.url) || '/';
-
-  // Icon opsional — kalau gagal load, notifikasi tetap harus tampil
-  const options = {
-    body,
-    tag,
-    renotify: true,
-    requireInteraction: true,
-    silent: false,
-    data: Object.assign({ url: targetUrl }, payload.data || {}, { url: targetUrl }),
-  };
-  if (payload.icon) options.icon = absUrl(payload.icon);
-  if (payload.badge) options.badge = absUrl(payload.badge);
-
-  event.waitUntil(
-    self.registration.showNotification(title, options).catch(() =>
-      self.registration.showNotification(title, { body, tag, data: { url: targetUrl } })
-    )
-  );
-});
-
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = (event.notification && event.notification.data && event.notification.data.url) || '/';
@@ -141,9 +102,4 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
-});
-
-self.addEventListener('pushsubscriptionchange', (event) => {
-  // Biarkan halaman login/dashboard re-subscribe; jaga SW tetap hidup
-  event.waitUntil(Promise.resolve());
 });

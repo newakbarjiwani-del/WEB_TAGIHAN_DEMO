@@ -987,23 +987,9 @@ const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 const brandIconUrl = @json(asset(config('brand.icon_192')));
-const pushSubscribeUrl = @json(route('push.subscribe'));
-const pushVapidUrl = @json(route('push.vapid'));
-const pushNocust = @json($result['data']['no_cust'] ?? ($result['data']['num2nd'] ?? ''));
-const pushVano = @json($result['data']['va_number'] ?? '');
 let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
 let paymentWatchTimer = null;
 let paymentWatchStopAt = 0;
-let pushSubscribeInFlight = false;
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
-}
 
 async function ensureNotifyPermission() {
   if (!('Notification' in window)) return false;
@@ -1017,49 +1003,7 @@ async function ensureNotifyPermission() {
   }
 }
 
-/** Fase 2: simpan PushSubscription agar notif jalan meski tab tertutup */
-async function ensureWebPushSubscription() {
-  if (pushSubscribeInFlight) return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-  const ok = await ensureNotifyPermission();
-  if (!ok) return false;
-  pushSubscribeInFlight = true;
-  try {
-    const vapidRes = await fetch(pushVapidUrl, { headers: { Accept: 'application/json' } });
-    const vapidJson = await vapidRes.json().catch(() => ({}));
-    if (!vapidRes.ok || !vapidJson.publicKey) return false;
-
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidJson.publicKey),
-      });
-    }
-    const body = sub.toJSON();
-    body.contentEncoding = 'aes128gcm';
-    body.nocust = pushNocust || (siswaBayar && siswaBayar.no_cust) || '';
-    body.vano = pushVano || (siswaBayar && (siswaBayar.va_number || siswaBayar.vano)) || '';
-    await fetch(pushSubscribeUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify(body),
-    });
-    return true;
-  } catch (e) {
-    console.warn('webpush subscribe', e);
-    return false;
-  } finally {
-    pushSubscribeInFlight = false;
-  }
-}
-
+/** Fase 1: notifikasi sistem saat PWA terbuka / diakses (poll status pembayaran) */
 async function showSystemNotification(title, body, data) {
   const opts = {
     body: body || '',
@@ -1116,7 +1060,6 @@ function startPaymentWatch(opts) {
   }
 
   ensureNotifyPermission();
-  ensureWebPushSubscription();
 
   const tick = async () => {
     if (checking) return;
@@ -1185,12 +1128,6 @@ function startPaymentWatch(opts) {
   paymentWatchTimer = setInterval(tick, intervalMs);
   setTimeout(tick, 1500);
 }
-
-@if(isset($result) && !empty($result['status']))
-document.addEventListener('DOMContentLoaded', function () {
-  setTimeout(function () { ensureWebPushSubscription(); }, 1500);
-});
-@endif
 
 function openMultiAkunModal() {
   const modal = document.getElementById('multiAkunModal');

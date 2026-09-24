@@ -50,15 +50,4 @@ return [
         'password' => env('TAGIHAN_DB_PASSWORD', 'Smartpay1ct'),
     ],
 
-    /*
-    | Web Push (Fase 2) — notifikasi saat tab/PWA tertutup
-    | Generate keys: php artisan webpush:vapid
-    */
-    'webpush' => [
-        'public_key' => env('VAPID_PUBLIC_KEY', ''),
-        'private_key' => env('VAPID_PRIVATE_KEY', ''),
-        'subject' => env('VAPID_SUBJECT', 'mailto:admin@ict.local'),
-        'notify_secret' => env('WEBPUSH_NOTIFY_SECRET', ''),
-    ],
-
 ];
