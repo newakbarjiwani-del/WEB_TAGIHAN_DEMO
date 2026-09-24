@@ -81,7 +81,7 @@ return [
     | Bentuk UI
     |--------------------------------------------------------------------------
     */
-    'radius' => (int) env('BRAND_RADIUS', 12), // px — lembut, modern institusional
+    'radius' => (int) env('BRAND_RADIUS', 8), // px — app-like, tidak berlebihan
     'font_family' => env(
         'BRAND_FONT',
         "'Plus Jakarta Sans', system-ui, sans-serif"

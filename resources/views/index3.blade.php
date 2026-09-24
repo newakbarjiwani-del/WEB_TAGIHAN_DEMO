@@ -82,13 +82,21 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
   $showGuide = !empty($brand['show_guide']);
   $isLoggedIn = isset($result) && !empty($result['status']);
 @endphp
-<div class="page-bg" aria-hidden="true"></div>
+<div class="page-bg" aria-hidden="true">
+  <span class="ornament-dot"></span>
+  <span class="ornament-arc"></span>
+  <span class="ornament-arc ornament-arc--2"></span>
+  <svg class="ornament-swoosh" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 140 C 90 40, 180 20, 260 70 C 320 105, 360 90, 390 50" stroke="currentColor" stroke-width="18" stroke-linecap="round" opacity=".09"/>
+    <path d="M40 160 C 110 70, 190 45, 270 90 C 330 120, 365 110, 395 75" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity=".12"/>
+  </svg>
+</div>
 <div class="app-shell {{ $showGuide ? 'has-guide' : 'no-guide' }} {{ $isLoggedIn ? 'is-logged' : 'is-guest' }}">
   <header class="topbar">
     <div class="brand-wrap">
       <img src="{{ asset($brand['logo']) }}" alt="{{ $brand['name'] }}" class="brand-logo">
       <div class="brand-text">
-        <p class="brand-kicker">Portal pembayaran</p>
+        <p class="brand-kicker"><span class="brand-dot" aria-hidden="true"></span>Portal pembayaran</p>
         <h1 class="brand-name">{{ $brand['name'] }}</h1>
         <p class="brand-tagline">{{ $brand['tagline'] }}</p>
       </div>
@@ -216,6 +224,7 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
           <div class="profile-saldo">
             <span>Saldo VA</span>
             <strong id="saldoVaText">Rp {{ number_format($result['data']['saldo'] ?? 0, 0, ',', '.') }}</strong>
+            <em class="saldo-chip">Siap pakai</em>
           </div>
         </div>
 
@@ -359,6 +368,14 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
           </article>
           @empty
           <div class="empty-state">
+            <div class="empty-state-icon" aria-hidden="true">
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <rect x="4" y="8" width="32" height="24" rx="4" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 20h16M12 25h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="30" cy="12" r="7" fill="var(--highlight,#E89B0C)"/>
+                <path d="M27.5 12.2l1.8 1.8 3.4-3.6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <p class="empty-state-title">Tidak ada tagihan aktif</p>
             <p class="empty-state-text">Semua tagihan sudah lunas, atau belum ada data untuk periode ini.</p>
           </div>
@@ -466,9 +483,11 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
   @if($showGuide)
   <aside class="app-aside" aria-label="Panduan">
     <div class="card aside-card">
-      <div class="aside-body">
+      <div class="aside-head">
         <p class="aside-eyebrow">Bantuan</p>
         <h2>Panduan pembayaran</h2>
+      </div>
+      <div class="aside-body">
         <p>Ikuti langkah di gambar, atau buka booklet PDF untuk petunjuk lengkap.</p>
         @if(!empty($brand['guide_image']) && file_exists(public_path($brand['guide_image'])))
         <a class="aside-guide" href="{{ asset($brand['guide_image']) }}" target="_blank" rel="noopener">
