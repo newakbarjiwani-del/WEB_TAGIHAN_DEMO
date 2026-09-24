@@ -26,6 +26,8 @@ Route::get('/manifest.webmanifest', function () {
         'dir' => 'ltr',
         'categories' => ['finance', 'education', 'utilities'],
         'prefer_related_applications' => false,
+        // Wajib untuk Chrome/FCM Web Push di Android
+        'gcm_sender_id' => '103953800507',
         'icons' => [
             [
                 'src' => asset($brand['icon_192']),

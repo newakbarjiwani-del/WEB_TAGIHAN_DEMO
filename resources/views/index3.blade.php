@@ -21,7 +21,9 @@ window.addEventListener('beforeinstallprompt', function (e) {
   window.dispatchEvent(new Event('pwa-install-ready'));
 });
 if (window.__BRAND__ && window.__BRAND__.pwa && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
+    try { reg.update(); } catch (e) {}
+  }).catch(function () {});
 }
 </script>
 @if(config('services.turnstile.enabled'))

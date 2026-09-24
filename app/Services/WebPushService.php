@@ -116,18 +116,20 @@ class WebPushService
                 : 'Pembayaran QRIS berhasil. Saldo VA diperbarui.'
         ));
 
+        $iconPath = '/'.ltrim((string) config('brand.icon_192', 'icons/icon-192.png'), '/');
         $payload = json_encode([
             'title' => $title,
             'body' => $body,
-            'icon' => $data['icon'] ?? asset(config('brand.icon_192')),
-            'badge' => $data['badge'] ?? asset(config('brand.icon_192')),
+            'icon' => $iconPath,
+            'badge' => $iconPath,
             'tag' => $data['tag'] ?? ('qris-paid-'.($data['qris_id'] ?? $data['transaction_id'] ?? time())),
-            'url' => $data['url'] ?? url('/'),
+            'url' => $data['url'] ?? '/',
             'data' => [
                 'qris_id' => $data['qris_id'] ?? null,
                 'transaction_id' => $data['transaction_id'] ?? null,
                 'vano' => $vano,
                 'amount' => $amount,
+                'url' => $data['url'] ?? '/',
             ],
         ], JSON_UNESCAPED_UNICODE);
 
@@ -178,7 +180,11 @@ class WebPushService
                         'authToken' => $sub->auth_token,
                         'contentEncoding' => $enc,
                     ]);
-                    $webPush->queueNotification($subscription, $payload);
+                    $webPush->queueNotification($subscription, $payload, [
+                        'TTL' => 3600,
+                        'urgency' => 'high',
+                        'topic' => 'qris-paid',
+                    ]);
                     if ($enc !== $sub->content_encoding) {
                         $sub->content_encoding = $enc;
                         $sub->save();

@@ -1,5 +1,5 @@
 /* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v5';
+const CACHE_VERSION = 'tagihan-pwa-v6';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -7,9 +7,6 @@ const PRECACHE_URLS = [
   OFFLINE_URL,
   '/manifest.webmanifest',
   '/css/app.css',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/logo.jpeg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,6 +32,7 @@ function isApiOrForm(request, url) {
   if (url.pathname.startsWith('/cek-status-pembayaran')) return true;
   if (url.pathname.startsWith('/pembayaran')) return true;
   if (url.pathname.startsWith('/list-tahun-akademik')) return true;
+  if (url.pathname.startsWith('/push/')) return true;
   return false;
 }
 
@@ -79,6 +77,12 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+function absUrl(path) {
+  if (!path) return self.location.origin + '/icons/icon-192.png';
+  if (/^https?:\/\//i.test(path)) return path;
+  return self.location.origin + (path.charAt(0) === '/' ? path : '/' + path);
+}
+
 self.addEventListener('push', (event) => {
   let payload = {};
   try {
@@ -86,7 +90,7 @@ self.addEventListener('push', (event) => {
       try {
         payload = event.data.json();
       } catch (e1) {
-        payload = { body: event.data.text() };
+        payload = { body: String(event.data.text() || '') };
       }
     }
   } catch (e) {
@@ -94,47 +98,52 @@ self.addEventListener('push', (event) => {
   }
 
   const title = payload.title || 'Pembayaran berhasil';
+  const body = payload.body || 'Transaksi QRIS berhasil diproses.';
+  const tag = payload.tag || ('qris-paid-' + Date.now());
+  const targetUrl = payload.url || (payload.data && payload.data.url) || '/';
+
+  // Icon opsional — kalau gagal load, notifikasi tetap harus tampil
   const options = {
-    body: payload.body || 'Transaksi QRIS berhasil diproses.',
-    icon: payload.icon || '/icons/icon-192.png',
-    badge: payload.badge || '/icons/icon-192.png',
-    tag: payload.tag || 'qris-paid',
+    body,
+    tag,
     renotify: true,
-    requireInteraction: false,
-    data: Object.assign(
-      { url: '/' },
-      payload.data || {},
-      { url: payload.url || (payload.data && payload.data.url) || '/' }
-    ),
+    requireInteraction: true,
+    silent: false,
+    data: Object.assign({ url: targetUrl }, payload.data || {}, { url: targetUrl }),
   };
+  if (payload.icon) options.icon = absUrl(payload.icon);
+  if (payload.badge) options.badge = absUrl(payload.badge);
 
   event.waitUntil(
-    self.registration.showNotification(title, options).catch(() => {
-      return self.registration.showNotification(title, {
-        body: options.body,
-        tag: options.tag,
-      });
-    })
+    self.registration.showNotification(title, options).catch(() =>
+      self.registration.showNotification(title, { body, tag, data: { url: targetUrl } })
+    )
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = (event.notification && event.notification.data && event.notification.data.url) || '/';
+  const abs = absUrl(target);
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {
         if (client.url && 'focus' in client) {
           client.focus();
           if (client.navigate) {
-            try { client.navigate(target); } catch (e) {}
+            try { client.navigate(abs); } catch (e) {}
           }
           return;
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow(target);
+        return clients.openWindow(abs);
       }
     })
   );
+});
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  // Biarkan halaman login/dashboard re-subscribe; jaga SW tetap hidup
+  event.waitUntil(Promise.resolve());
 });
