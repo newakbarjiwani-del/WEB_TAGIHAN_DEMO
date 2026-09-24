@@ -437,6 +437,54 @@ html.dark .topup-panel{
 }
 .btn-topup-qris:hover{background:var(--accent-h, #086693)}
 html.dark .btn-topup-qris{color:#0a1a10 !important}
+.topup-actions{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  flex-shrink:0;
+}
+.btn-history-qris{
+  display:inline-flex;align-items:center;gap:6px;
+  min-height:42px;padding:0 14px;border-radius:var(--radius);
+  font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+}
+.history-topup-lead{
+  margin:0 0 .75rem;font-size:12.5px;color:var(--text2);line-height:1.4;
+}
+.history-topup-list{
+  display:flex;flex-direction:column;gap:10px;
+  max-height:min(58vh, 420px);overflow:auto;padding-right:2px;
+}
+.history-topup-loading,.history-topup-list .empty-note{
+  padding:1.25rem .5rem;text-align:center;color:var(--text2);font-size:13px;
+}
+.history-topup-item{
+  padding:.85rem .9rem;border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);
+}
+.history-topup-item-top{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;
+}
+.history-topup-no{font-size:11px;font-weight:700;color:var(--text2)}
+.history-topup-amount{
+  margin:0 0 .65rem;font-size:1.15rem;font-weight:800;color:var(--text);
+  font-variant-numeric:tabular-nums;
+}
+.history-topup-meta{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;
+}
+.history-topup-meta > div{min-width:0}
+.history-topup-meta span{
+  display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--text2);margin-bottom:2px;
+}
+.history-topup-meta b{
+  display:block;font-size:12.5px;font-weight:650;color:var(--text);
+  word-break:break-word;
+}
+.history-topup-meta-wide{grid-column:1 / -1}
+.history-topup-meta b.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px}
+.history-topup-modal .modal-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
 
 .empty-state{
   text-align:center;padding:2rem 1.25rem;
@@ -1304,6 +1352,9 @@ html.dark .btn-install-now:hover{
   .card,.panel{padding:.95rem .9rem}
   .profile-saldo{align-items:flex-start;margin-left:0;width:100%}
   .topup-panel{flex-direction:column;align-items:stretch}
+  .topup-actions{width:100%}
+  .topup-actions .btn-topup-qris,
+  .topup-actions .btn-history-qris{flex:1;justify-content:center}
   .btn-topup-qris{justify-content:center;width:100%}
 }
 @media(max-width:959px){

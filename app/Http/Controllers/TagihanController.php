@@ -850,6 +850,120 @@ class TagihanController extends Controller
         }
     }
 
+    /**
+     * Riwayat top up QRIS sukses (paid/success) untuk akun aktif.
+     */
+    public function historyTopupQris(Request $request)
+    {
+        if (! config('brand.payment_qris')) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Metode QRIS tidak aktif',
+            ], 403);
+        }
+
+        $sess = session('tagihan');
+        $nocust = self::normalizeVa($request->input('nocust') ?: ($sess['active_no_cust'] ?? ''));
+        if ($nocust === '') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Sesi login tidak ditemukan',
+            ], 401);
+        }
+
+        $limit = min(100, max(1, (int) $request->input('limit', 50)));
+
+        try {
+            $pdo = $this->tagihanPdo();
+            if (! $pdo) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Koneksi database tagihan gagal',
+                ], 500);
+            }
+
+            $sql = "SELECT q.id, q.amount, q.qris_id, q.transaction_id, q.vano,
+                           q.description, q.status, q.paid_flag, q.paid_at,
+                           q.created_at, q.updated_at, q.namacust
+                    FROM mst_qris q
+                    WHERE (q.nocust = ? OR q.vano LIKE ?)
+                      AND (q.paid_flag = 1 OR LOWER(COALESCE(q.status, '')) IN ('paid', 'success'))
+                      AND (
+                        LOWER(COALESCE(q.description, '')) LIKE '%top up%'
+                        OR LOWER(COALESCE(q.description, '')) LIKE '%topup%'
+                        OR NOT EXISTS (
+                          SELECT 1 FROM mst_qris_item i WHERE i.payment_id = q.id
+                        )
+                      )
+                    ORDER BY COALESCE(q.paid_at, q.updated_at, q.created_at) DESC, q.id DESC
+                    LIMIT {$limit}";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$nocust, '%'.$nocust]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+            $items = array_map(static function (array $row) {
+                $paidAt = $row['paid_at'] ?? $row['updated_at'] ?? $row['created_at'] ?? null;
+
+                return [
+                    'id' => (int) ($row['id'] ?? 0),
+                    'amount' => isset($row['amount']) ? (float) $row['amount'] : 0,
+                    'qris_id' => $row['qris_id'] ?? null,
+                    'transaction_id' => $row['transaction_id'] ?? null,
+                    'vano' => $row['vano'] ?? null,
+                    'description' => $row['description'] ?? null,
+                    'status' => $row['status'] ?? 'paid',
+                    'paid_flag' => (int) ($row['paid_flag'] ?? 0),
+                    'paid_at' => $paidAt,
+                    'namacust' => $row['namacust'] ?? null,
+                ];
+            }, $rows);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'OK',
+                'data' => [
+                    'nocust' => $nocust,
+                    'count' => count($items),
+                    'items' => $items,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('historyTopupQris', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal memuat history top up',
+            ], 500);
+        }
+    }
+
+    private function tagihanPdo(): ?\PDO
+    {
+        $cfg = config('services.tagihan_db');
+        if (empty($cfg['host']) || empty($cfg['database'])) {
+            return null;
+        }
+
+        try {
+            $dsn = sprintf(
+                'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+                $cfg['host'],
+                $cfg['port'] ?? 3306,
+                $cfg['database']
+            );
+
+            return new \PDO($dsn, $cfg['username'] ?? '', $cfg['password'] ?? '', [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_TIMEOUT => 5,
+            ]);
+        } catch (\Throwable $e) {
+            Log::info('tagihanPdo skip', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function logout(Request $request)
     {
         $request->session()->forget('tagihan');

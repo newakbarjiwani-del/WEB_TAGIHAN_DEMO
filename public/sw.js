@@ -1,5 +1,5 @@
 /* Tagihan PWA service worker — cache name ikut short brand agar mudah diganti */
-const CACHE_VERSION = 'tagihan-pwa-v9';
+const CACHE_VERSION = 'tagihan-pwa-v10';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';
 
@@ -30,6 +30,7 @@ function isApiOrForm(request, url) {
   if (url.pathname.startsWith('/generate-qris')) return true;
   if (url.pathname.startsWith('/cek-tagihan')) return true;
   if (url.pathname.startsWith('/cek-status-pembayaran')) return true;
+  if (url.pathname.startsWith('/history-topup-qris')) return true;
   if (url.pathname.startsWith('/pembayaran')) return true;
   if (url.pathname.startsWith('/list-tahun-akademik')) return true;
   if (url.pathname.startsWith('/push/')) return true;

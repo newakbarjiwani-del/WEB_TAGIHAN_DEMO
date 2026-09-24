@@ -123,6 +123,8 @@ Route::post('/generate-va', [TagihanController::class, 'buatVA'])->name('generat
 Route::post('/generate-qris', [TagihanController::class, 'buatQRIS'])->name('generate-qris');
 Route::match(['get', 'post'], '/cek-status-pembayaran', [TagihanController::class, 'cekStatusPembayaran'])
     ->name('cek-status-pembayaran');
+Route::get('/history-topup-qris', [TagihanController::class, 'historyTopupQris'])
+    ->name('history-topup-qris');
 
 Route::post('/dua', [TagihanController::class, 'cek'])->name('tagihan.cek');
 

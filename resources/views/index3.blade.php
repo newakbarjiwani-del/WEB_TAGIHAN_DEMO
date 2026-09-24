@@ -237,10 +237,16 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
             <p class="topup-title">Top up saldo VA</p>
             <p class="topup-hint">Tidak perlu pilih tagihan. Masukkan nominal, lalu bayar dengan scan QRIS.</p>
           </div>
-          <button type="button" class="ui-btn ui-btn-primary btn-topup-qris" id="btnTopupQris" onclick="showTopupQrisModal()">
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Top up via QRIS
-          </button>
+          <div class="topup-actions">
+            <button type="button" class="ui-btn ui-btn-secondary btn-history-qris" id="btnHistoryTopupQris" onclick="openHistoryTopupQris()">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              History
+            </button>
+            <button type="button" class="ui-btn ui-btn-primary btn-topup-qris" id="btnTopupQris" onclick="showTopupQrisModal()">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Top up via QRIS
+            </button>
+          </div>
         </div>
         @endif
       </div>
@@ -668,6 +674,27 @@ function notifyOk(title, text) { notifyTitle(title, text, 'success'); }
   @csrf
 </form>
 
+@if(isset($result) && !empty($result['status']) && config('brand.payment_qris'))
+<div id="historyTopupModal" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="historyTopupTitle">
+  <div class="modal-box modal-sm history-topup-modal">
+    <div class="modal-head">
+      <h3 id="historyTopupTitle">History top up QRIS</h3>
+      <button type="button" class="modal-x" onclick="closeHistoryTopupQris()" aria-label="Tutup">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="history-topup-lead">Hanya transaksi <strong>sukses</strong> (paid).</p>
+      <div id="historyTopupList" class="history-topup-list">
+        <div class="history-topup-loading">Memuat…</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="ui-btn ui-btn-secondary ui-btn-sm" onclick="loadHistoryTopupQris(true)">Refresh</button>
+      <button type="button" class="btn-close-full" onclick="closeHistoryTopupQris()">Tutup</button>
+    </div>
+  </div>
+</div>
+@endif
+
 <button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll ke atas" type="button">
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
 </button>
@@ -982,6 +1009,7 @@ const siswaBayar = {
 const generateVaUrl = @json(route('generate-va'));
 const generateQrisUrl = @json(route('generate-qris'));
 const cekStatusPembayaranUrl = @json(route('cek-status-pembayaran'));
+const historyTopupQrisUrl = @json(route('history-topup-qris'));
 const paymentQrisEnabled = !!(window.__BRAND__ && window.__BRAND__.paymentQris);
 const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
@@ -1895,6 +1923,88 @@ async function prosesGenerateVa(payload, total, nocust, btn) {
       btn.disabled = false;
       btn.textContent = '+ Buat Nomor VA';
     }
+  }
+}
+
+function formatHistoryPaidAt(raw) {
+  if (!raw) return '-';
+  try {
+    const d = new Date(String(raw).replace(' ', 'T'));
+    if (Number.isNaN(d.getTime())) return String(raw);
+    const pad = (n) => String(n).padStart(2, '0');
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear()
+      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  } catch (e) {
+    return String(raw);
+  }
+}
+
+function openHistoryTopupQris() {
+  if (!paymentQrisEnabled) {
+    notifyWarn('QRIS nonaktif', 'Fitur top up QRIS belum diaktifkan.');
+    return;
+  }
+  const modal = document.getElementById('historyTopupModal');
+  if (!modal) return;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadHistoryTopupQris(false);
+}
+
+function closeHistoryTopupQris() {
+  const modal = document.getElementById('historyTopupModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function loadHistoryTopupQris(force) {
+  const box = document.getElementById('historyTopupList');
+  if (!box) return;
+  box.innerHTML = '<div class="history-topup-loading">Memuat…</div>';
+  try {
+    const params = new URLSearchParams();
+    const nocust = (siswaBayar && (siswaBayar.no_cust || siswaBayar.num2nd)) || '';
+    if (nocust) params.set('nocust', nocust);
+    params.set('limit', '50');
+    if (force) params.set('_', String(Date.now()));
+    const res = await fetch(historyTopupQrisUrl + '?' + params.toString(), {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.status) {
+      box.innerHTML = '<div class="empty-note">' + esc(json.message || 'Gagal memuat history') + '</div>';
+      return;
+    }
+    const items = (json.data && json.data.items) || [];
+    if (!items.length) {
+      box.innerHTML = '<div class="empty-note">Belum ada top up QRIS yang sukses.</div>';
+      return;
+    }
+    box.innerHTML = items.map(function (row, idx) {
+      const amt = formatRp(row.amount || 0);
+      const when = formatHistoryPaidAt(row.paid_at);
+      const trx = row.transaction_id || row.qris_id || '-';
+      const desc = row.description || 'Top up QRIS';
+      return (
+        '<article class="history-topup-item">' +
+          '<div class="history-topup-item-top">' +
+            '<span class="badge badge-paid">Sukses</span>' +
+            '<span class="history-topup-no">#' + (idx + 1) + '</span>' +
+          '</div>' +
+          '<p class="history-topup-amount">' + esc(amt) + '</p>' +
+          '<div class="history-topup-meta">' +
+            '<div><span>Waktu</span><b>' + esc(when) + '</b></div>' +
+            '<div><span>Keterangan</span><b>' + esc(desc) + '</b></div>' +
+            '<div class="history-topup-meta-wide"><span>ID transaksi</span><b class="mono">' + esc(String(trx)) + '</b></div>' +
+          '</div>' +
+        '</article>'
+      );
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div class="empty-note">Gagal memuat history. Coba lagi.</div>';
   }
 }
 
