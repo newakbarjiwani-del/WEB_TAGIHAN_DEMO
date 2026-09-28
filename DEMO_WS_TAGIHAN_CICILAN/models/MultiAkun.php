@@ -33,7 +33,7 @@ class MultiAkun
     public function findMember($noCust)
     {
         $noCust = $this->normalizeNoCust($noCust);
-        $stmt = $this->db->prepare('SELECT * FROM multi_account_members WHERE no_cust = :no_cust LIMIT 1');
+        $stmt = $this->db->prepare('SELECT * FROM pwa_multi_account_members WHERE no_cust = :no_cust LIMIT 1');
         $stmt->execute([':no_cust' => $noCust]);
 
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
@@ -49,7 +49,7 @@ class MultiAkun
         $active = $this->normalizeNoCust($activeNoCust ?: $noCust);
         $stmt = $this->db->prepare('
             SELECT id, group_id, no_cust, va_display, nama, kelas, jenjang, last_academic_year
-            FROM multi_account_members
+            FROM pwa_multi_account_members
             WHERE group_id = :group_id
             ORDER BY nama ASC, no_cust ASC
         ');
@@ -93,7 +93,7 @@ class MultiAkun
 
         if ($existing) {
             $stmt = $this->db->prepare('
-                UPDATE multi_account_members
+                UPDATE pwa_multi_account_members
                 SET group_id = :group_id,
                     va_display = :va_display,
                     nama = :nama,
@@ -106,7 +106,7 @@ class MultiAkun
             $stmt->execute($payload);
         } else {
             $stmt = $this->db->prepare('
-                INSERT INTO multi_account_members
+                INSERT INTO pwa_multi_account_members
                     (group_id, no_cust, va_display, nama, kelas, jenjang, last_academic_year, created_at, updated_at)
                 VALUES
                     (:group_id, :no_cust, :va_display, :nama, :kelas, :jenjang, :last_academic_year, NOW(), NOW())
@@ -119,7 +119,7 @@ class MultiAkun
 
     private function createGroup()
     {
-        $this->db->exec('INSERT INTO multi_account_groups (created_at, updated_at) VALUES (NOW(), NOW())');
+        $this->db->exec('INSERT INTO pwa_multi_account_groups (created_at, updated_at) VALUES (NOW(), NOW())');
 
         return (int) $this->db->lastInsertId();
     }
@@ -165,9 +165,9 @@ class MultiAkun
                 $this->upsertMember($newSiswa, $newVaDisplay, $newYear, $groupId);
 
                 if ($groupId !== $otherGroupId) {
-                    $stmt = $this->db->prepare('UPDATE multi_account_members SET group_id = :gid, updated_at = NOW() WHERE group_id = :old');
+                    $stmt = $this->db->prepare('UPDATE pwa_multi_account_members SET group_id = :gid, updated_at = NOW() WHERE group_id = :old');
                     $stmt->execute([':gid' => $groupId, ':old' => $otherGroupId]);
-                    $del = $this->db->prepare('DELETE FROM multi_account_groups WHERE id = :id');
+                    $del = $this->db->prepare('DELETE FROM pwa_multi_account_groups WHERE id = :id');
                     $del->execute([':id' => $otherGroupId]);
                 }
             }
@@ -230,17 +230,17 @@ class MultiAkun
 
         $this->db->beginTransaction();
         try {
-            $del = $this->db->prepare('DELETE FROM multi_account_members WHERE no_cust = :no_cust LIMIT 1');
+            $del = $this->db->prepare('DELETE FROM pwa_multi_account_members WHERE no_cust = :no_cust LIMIT 1');
             $del->execute([':no_cust' => $targetNoCust]);
 
-            $countStmt = $this->db->prepare('SELECT COUNT(*) FROM multi_account_members WHERE group_id = :gid');
+            $countStmt = $this->db->prepare('SELECT COUNT(*) FROM pwa_multi_account_members WHERE group_id = :gid');
             $countStmt->execute([':gid' => $groupId]);
             $remaining = (int) $countStmt->fetchColumn();
 
             if ($remaining < 2) {
-                $clear = $this->db->prepare('DELETE FROM multi_account_members WHERE group_id = :gid');
+                $clear = $this->db->prepare('DELETE FROM pwa_multi_account_members WHERE group_id = :gid');
                 $clear->execute([':gid' => $groupId]);
-                $delGroup = $this->db->prepare('DELETE FROM multi_account_groups WHERE id = :id');
+                $delGroup = $this->db->prepare('DELETE FROM pwa_multi_account_groups WHERE id = :id');
                 $delGroup->execute([':id' => $groupId]);
                 $groupId = null;
                 $accounts = [];
@@ -248,7 +248,7 @@ class MultiAkun
                 // List dari akun aktif jika masih ada, kalau aktif yang dihapus pakai anggota tersisa
                 $listFrom = $this->findMember($activeNoCust) ? $activeNoCust : null;
                 if (!$listFrom) {
-                    $any = $this->db->prepare('SELECT no_cust FROM multi_account_members WHERE group_id = :gid LIMIT 1');
+                    $any = $this->db->prepare('SELECT no_cust FROM pwa_multi_account_members WHERE group_id = :gid LIMIT 1');
                     $any->execute([':gid' => $groupId]);
                     $listFrom = $any->fetchColumn() ?: $activeNoCust;
                 }

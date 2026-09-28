@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Push notif QRIS → pelunasan tagihan cicilan (mst_qris + scctva).
+ * Push notif QRIS → pelunasan tagihan cicilan (pwa_qris + scctva).
  *
  * Variabel dari pushNotif.php: $dbhandle, $transactionQrId, $vano, $amount,
  * $transactionId, $responseTimestamp, $data, $token.
  *
  * Alur:
- * 1. Cari transaksi di mst_qris (qris_id / vano pending)
+ * 1. Cari transaksi di pwa_qris (qris_id / vano pending)
  * 2. Tandai paid
  * 3. Jika top-up (tanpa item / deskripsi TOPUP) → selesai (saldo VA via jalur bank)
  *    Jika ada item tagihan → insert scctva (legacy)
@@ -24,7 +24,7 @@ if (! function_exists('tc_push_response')) {
 
 if (! function_exists('tc_write_push_log')) {
     /**
-     * Audit trail callback → log_qris_push (best-effort, jangan gagalkan flow).
+     * Audit trail callback → pwa_log_qris_push (best-effort, jangan gagalkan flow).
      *
      * @param  array<string, mixed>  $log
      */
@@ -70,7 +70,7 @@ if (! function_exists('tc_write_push_log')) {
                 : null;
 
             $sql = sprintf(
-                'INSERT INTO log_qris_push (
+                'INSERT INTO pwa_log_qris_push (
                     payment_id, event_type, qris_id, transaction_id, vano,
                     custid, nocust, amount, paid_flag, processed, scctva_status,
                     response_code, response_message, http_code,
@@ -117,7 +117,7 @@ if (! function_exists('tc_find_by_qris_id')) {
         if ($qrisId === '') {
             return null;
         }
-        $stmt = mysqli_prepare($db, 'SELECT * FROM mst_qris WHERE qris_id = ? LIMIT 1');
+        $stmt = mysqli_prepare($db, 'SELECT * FROM pwa_qris WHERE qris_id = ? LIMIT 1');
         if (! $stmt) {
             return null;
         }
@@ -139,7 +139,7 @@ if (! function_exists('tc_find_by_vano_pending')) {
         }
         $stmt = mysqli_prepare(
             $db,
-            "SELECT * FROM mst_qris WHERE vano = ? AND status = 'pending' AND paid_flag = 0 ORDER BY id DESC LIMIT 1"
+            "SELECT * FROM pwa_qris WHERE vano = ? AND status = 'pending' AND paid_flag = 0 ORDER BY id DESC LIMIT 1"
         );
         if (! $stmt) {
             return null;
@@ -160,7 +160,7 @@ if (! function_exists('tc_load_items')) {
         $stmt = mysqli_prepare(
             $db,
             'SELECT aa, billcd, nama_tagihan, amount, is_cicil, sisa_sebelum
-             FROM mst_qris_item WHERE payment_id = ? ORDER BY id ASC'
+             FROM pwa_qris_item WHERE payment_id = ? ORDER BY id ASC'
         );
         if (! $stmt) {
             return [];
@@ -181,7 +181,7 @@ if (! function_exists('tc_load_items')) {
 if (! function_exists('tc_mark_paid')) {
     function tc_mark_paid($db, int $id, float $paidAmount, string $paidAt): bool
     {
-        $sql = "UPDATE mst_qris
+        $sql = "UPDATE pwa_qris
                 SET status = 'paid',
                     paid_flag = 1,
                     amount = ?,
@@ -365,7 +365,7 @@ if (! $alreadyPaid) {
                 $scctvaOk = tc_insert_scctva($dbhandle, $billing, $items);
                 $scctvaStatus = $scctvaOk ? 'inserted' : 'failed';
                 if (! $scctvaOk) {
-                    error_log('tagihanCicilan: scctva insert gagal untuk mst_qris id='.$paymentId);
+                    error_log('tagihanCicilan: scctva insert gagal untuk pwa_qris id='.$paymentId);
                 }
             }
         }

@@ -13,9 +13,9 @@ return new class extends Migration
         $conn = Schema::connection($this->connection);
 
         // Bersihkan sisa migrate gagal (unique endpoint terlalu panjang di MySQL lama)
-        $conn->dropIfExists('push_subscriptions');
+        $conn->dropIfExists('pwa_push_subscriptions');
 
-        $conn->create('push_subscriptions', function (Blueprint $table) {
+        $conn->create('pwa_push_subscriptions', function (Blueprint $table) {
             $table->id();
             // endpoint URL push bisa > 191 chars; unique pakai hash agar lolos batas 767 bytes
             $table->string('endpoint_hash', 64)->unique();
@@ -33,6 +33,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection($this->connection)->dropIfExists('push_subscriptions');
+        Schema::connection($this->connection)->dropIfExists('pwa_push_subscriptions');
     }
 };

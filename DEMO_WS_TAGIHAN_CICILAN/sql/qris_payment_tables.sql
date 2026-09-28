@@ -2,14 +2,14 @@
 -- QRIS tagihan cicilan (WEB_TAGIHAN_DEMO / DEMO_WS)
 -- Jalankan di DB yang sama dengan DEMO_WS (mis. sidoarjo_raudhatul_jannah)
 --
--- 1) mst_qris       — header transaksi generate QRIS
--- 2) mst_qris_item  — detail tagihan (AA) yang dibayar di QRIS tsb
--- 3) log_qris_push  — audit trail setiap callback pushNotif
+-- 1) pwa_qris       — header transaksi generate QRIS
+-- 2) pwa_qris_item  — detail tagihan (AA) yang dibayar di QRIS tsb
+-- 3) pwa_log_qris_push  — audit trail setiap callback pushNotif
 --
 -- MySQL lama: DATETIME NULL (hindari error 1293 dual CURRENT_TIMESTAMP).
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS mst_qris (
+CREATE TABLE IF NOT EXISTS pwa_qris (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   custid VARCHAR(64) NOT NULL,
   nocust VARCHAR(64) NOT NULL,
@@ -30,14 +30,14 @@ CREATE TABLE IF NOT EXISTS mst_qris (
   updated_at DATETIME NULL,
   paid_at DATETIME NULL,
   PRIMARY KEY (id),
-  KEY idx_mst_qris_custid (custid),
-  KEY idx_mst_qris_nocust (nocust),
-  KEY idx_mst_qris_status (status),
-  KEY idx_mst_qris_qris_id (qris_id),
-  KEY idx_mst_qris_vano (vano)
+  KEY idx_pwa_qris_custid (custid),
+  KEY idx_pwa_qris_nocust (nocust),
+  KEY idx_pwa_qris_status (status),
+  KEY idx_pwa_qris_qris_id (qris_id),
+  KEY idx_pwa_qris_vano (vano)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS mst_qris_item (
+CREATE TABLE IF NOT EXISTS pwa_qris_item (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   payment_id BIGINT UNSIGNED NOT NULL,
   aa BIGINT UNSIGNED NOT NULL COMMENT 'ID tagihan (AA)',
@@ -48,16 +48,16 @@ CREATE TABLE IF NOT EXISTS mst_qris_item (
   sisa_sebelum DECIMAL(18,2) NULL COMMENT 'Sisa tagihan saat generate',
   created_at DATETIME NULL,
   PRIMARY KEY (id),
-  KEY idx_mst_qris_item_payment (payment_id),
-  KEY idx_mst_qris_item_aa (aa),
-  CONSTRAINT fk_mst_qris_item_payment
-    FOREIGN KEY (payment_id) REFERENCES mst_qris(id)
+  KEY idx_pwa_qris_item_payment (payment_id),
+  KEY idx_pwa_qris_item_aa (aa),
+  CONSTRAINT fk_pwa_qris_item_payment
+    FOREIGN KEY (payment_id) REFERENCES pwa_qris(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS log_qris_push (
+CREATE TABLE IF NOT EXISTS pwa_log_qris_push (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  payment_id BIGINT UNSIGNED NULL COMMENT 'mst_qris.id (null jika not found)',
+  payment_id BIGINT UNSIGNED NULL COMMENT 'pwa_qris.id (null jika not found)',
   event_type VARCHAR(32) NOT NULL DEFAULT 'push_notif'
     COMMENT 'push_notif | already_paid | not_found | error',
   qris_id VARCHAR(128) NULL,
@@ -81,10 +81,10 @@ CREATE TABLE IF NOT EXISTS log_qris_push (
   user_agent VARCHAR(255) NULL,
   created_at DATETIME NULL,
   PRIMARY KEY (id),
-  KEY idx_log_qris_push_qris_id (qris_id),
-  KEY idx_log_qris_push_vano (vano),
-  KEY idx_log_qris_push_payment (payment_id),
-  KEY idx_log_qris_push_custid (custid),
-  KEY idx_log_qris_push_created (created_at),
-  KEY idx_log_qris_push_event (event_type)
+  KEY idx_pwa_log_qris_push_qris_id (qris_id),
+  KEY idx_pwa_log_qris_push_vano (vano),
+  KEY idx_pwa_log_qris_push_payment (payment_id),
+  KEY idx_pwa_log_qris_push_custid (custid),
+  KEY idx_pwa_log_qris_push_created (created_at),
+  KEY idx_pwa_log_qris_push_event (event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

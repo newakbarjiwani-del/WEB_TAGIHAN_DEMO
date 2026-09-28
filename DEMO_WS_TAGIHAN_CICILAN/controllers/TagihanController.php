@@ -321,7 +321,7 @@ public function getTahunAkademik() {
         } catch (Exception $e) {
             $msg = $e->getMessage();
             if (stripos($msg, 'multi_account_') !== false || stripos($msg, "doesn't exist") !== false) {
-                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan ws/sql/multi_account_tables.sql');
+                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan sql/install_missing_tables.sql');
                 return;
             }
             jsonResponse(false, 'Gagal menambahkan multi akun: ' . $msg);
@@ -375,7 +375,7 @@ public function getTahunAkademik() {
         } catch (Exception $e) {
             $msg = $e->getMessage();
             if (stripos($msg, 'multi_account_') !== false || stripos($msg, "doesn't exist") !== false) {
-                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan ws/sql/multi_account_tables.sql');
+                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan sql/install_missing_tables.sql');
                 return;
             }
             jsonResponse(false, 'Gagal beralih akun: ' . $msg);
@@ -408,7 +408,7 @@ public function getTahunAkademik() {
         } catch (Exception $e) {
             $msg = $e->getMessage();
             if (stripos($msg, 'multi_account_') !== false || stripos($msg, "doesn't exist") !== false) {
-                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan ws/sql/multi_account_tables.sql');
+                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan sql/install_missing_tables.sql');
                 return;
             }
             jsonResponse(false, 'Gagal menghapus multi akun: ' . $msg);

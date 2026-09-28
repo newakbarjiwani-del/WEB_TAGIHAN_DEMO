@@ -1,7 +1,7 @@
 <?php
 /**
  * vano 751000 — forward token ke DEMO_INSTALLMENT (103.23.103.43),
- * update mst_qris → paid/success + log_qris_push di DB 103.23.103.36.
+ * update pwa_qris → paid/success + pwa_log_qris_push di DB 103.23.103.36.
  *
  * Dari pushNotif.php: $token, $transactionQrId, $vano, $amount,
  * $transactionId, $accountNo, $description, $responseTimestamp
@@ -151,7 +151,7 @@ if (! function_exists('di_write_push_log')) {
                 : null;
 
             $sql = sprintf(
-                'INSERT INTO log_qris_push (
+                'INSERT INTO pwa_log_qris_push (
                     payment_id, event_type, qris_id, transaction_id, vano,
                     custid, nocust, amount, paid_flag, processed, scctva_status,
                     response_code, response_message, http_code,
@@ -179,14 +179,14 @@ if (! function_exists('di_write_push_log')) {
             );
             @mysqli_query($db, $sql);
         } catch (Throwable $e) {
-            error_log('demoInstallment log_qris_push: '.$e->getMessage());
+            error_log('demoInstallment pwa_log_qris_push: '.$e->getMessage());
         }
     }
 }
 
 if (! function_exists('di_mark_qris_paid')) {
     /**
-     * Tandai mst_qris paid/success. Return: newly_paid|already_paid|not_found|error
+     * Tandai pwa_qris paid/success. Return: newly_paid|already_paid|not_found|error
      *
      * @param  mysqli|null  $db
      * @return array{result:string,payment_id:?int,custid:?string,nocust:?string,row:?array}
@@ -211,7 +211,7 @@ if (! function_exists('di_mark_qris_paid')) {
         $qrisEsc = mysqli_real_escape_string($db, $qrisId);
 
         $sqlFind = "SELECT id, custid, nocust, amount, status, paid_flag, qris_id, vano
-            FROM mst_qris
+            FROM pwa_qris
             WHERE (qris_id = '{$qrisEsc}' AND qris_id <> '')
                OR (vano = '{$vanoEsc}' AND vano <> '')
             ORDER BY id DESC LIMIT 1";
@@ -236,7 +236,7 @@ if (! function_exists('di_mark_qris_paid')) {
 
         $paidAmount = is_numeric($amountVal) ? (float) $amountVal : (float) ($row['amount'] ?? 0);
         $paidAtEsc = mysqli_real_escape_string($db, $paidAt);
-        $sqlUp = "UPDATE mst_qris
+        $sqlUp = "UPDATE pwa_qris
             SET status = 'paid',
                 paid_flag = 1,
                 amount = ".(float) $paidAmount.",

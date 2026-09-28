@@ -135,7 +135,7 @@ class QrisPayment
         $this->pdo->beginTransaction();
         try {
             $stmt = $this->pdo->prepare(
-                "INSERT INTO mst_qris (
+                "INSERT INTO pwa_qris (
                     custid, nocust, namacust, vano, amount, qris_id, qris_content,
                     transaction_id, account_no, mitra_customer_id, description,
                     status, paid_flag, request_payload, response_payload, created_at, updated_at
@@ -163,7 +163,7 @@ class QrisPayment
             $paymentId = (int) $this->pdo->lastInsertId();
 
             $itemStmt = $this->pdo->prepare(
-                "INSERT INTO mst_qris_item (
+                "INSERT INTO pwa_qris_item (
                     payment_id, aa, billcd, nama_tagihan, amount, is_cicil, sisa_sebelum, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())"
             );
@@ -255,7 +255,7 @@ class QrisPayment
         $this->pdo->beginTransaction();
         try {
             $stmt = $this->pdo->prepare(
-                "INSERT INTO mst_qris (
+                "INSERT INTO pwa_qris (
                     custid, nocust, namacust, vano, amount, qris_id, qris_content,
                     transaction_id, account_no, mitra_customer_id, description,
                     status, paid_flag, request_payload, response_payload, created_at, updated_at
@@ -283,7 +283,7 @@ class QrisPayment
             $paymentId = (int) $this->pdo->lastInsertId();
 
             $itemStmt = $this->pdo->prepare(
-                "INSERT INTO mst_qris_item (
+                "INSERT INTO pwa_qris_item (
                     payment_id, aa, billcd, nama_tagihan, amount, is_cicil, sisa_sebelum, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())"
             );
@@ -331,7 +331,7 @@ class QrisPayment
         }
 
         $sql = 'SELECT id, qris_id, transaction_id, vano, amount, status, paid_flag, custid, nocust, namacust, updated_at, paid_at
-                FROM mst_qris WHERE ';
+                FROM pwa_qris WHERE ';
         $parts = [];
         $params = [];
 

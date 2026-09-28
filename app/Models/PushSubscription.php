@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class PushSubscription extends Model
 {
-    /** Subscription disimpan di DB tagihan (sama dengan mst_qris). */
+    /** Subscription disimpan di DB tagihan (sama dengan pwa_qris). */
     protected $connection = 'tagihan';
+
+    protected $table = 'pwa_push_subscriptions';
 
     protected $fillable = [
         'endpoint_hash',

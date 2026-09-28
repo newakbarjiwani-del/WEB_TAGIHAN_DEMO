@@ -41,7 +41,7 @@ return [
         'url' => env('WS_TAGIHAN_URL', 'http://103.23.103.43/WEB_TAGIHAN_PROJECT/WS_TAGIHAN_SIDOARJO_RAUDHATUL_JANNAH/index.php'),
     ],
 
-    // DB sekolah untuk simpan mst_qris / mst_qris_item (sama dengan DEMO_WS database.php)
+    // DB sekolah untuk simpan pwa_qris / pwa_qris_item (sama dengan DEMO_WS database.php)
     'tagihan_db' => [
         'host' => env('TAGIHAN_DB_HOST', '103.23.103.36'),
         'port' => env('TAGIHAN_DB_PORT', '3306'),

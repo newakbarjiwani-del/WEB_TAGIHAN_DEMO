@@ -1,7 +1,7 @@
 <?php
 
 /**
- * DB WEB_TAGIHAN_DEMO / DEMO_WS — log_qris_push & mst_qris.
+ * DB WEB_TAGIHAN_DEMO / DEMO_WS — pwa_log_qris_push & pwa_qris.
  * Host publik: 103.23.103.36 (demo_smartpayment_installment)
  */
 $host = '103.23.103.36';

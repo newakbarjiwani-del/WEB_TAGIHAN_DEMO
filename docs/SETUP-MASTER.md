@@ -33,11 +33,11 @@ Dokumentasi lengkap untuk menyalin project ini sebagai **base** white-label tagi
 │  (browser / HP)     │   WS_TAGIHAN_URL   │  (cek tagihan, VA, QRIS)     │
 └─────────┬───────────┘                    └──────────────┬───────────────┘
           │                                               │
-          │ poll /cek-status-pembayaran                   │ tulis mst_qris
+          │ poll /cek-status-pembayaran                   │ tulis pwa_qris
           │ (Fase 1 notif)                                ▼
           │                                    ┌──────────────────────────┐
           │                                    │  MySQL sekolah           │
-          │                                    │  (mst_qris, tagihan, …)  │
+          │                                    │  (pwa_qris, tagihan, …)  │
           │                                    └────────────▲─────────────┘
           │                                                 │
           │                                    update paid  │
@@ -128,7 +128,7 @@ APP_DEBUG=false
 # Arahkan ke WS client yang sudah di-deploy
 WS_TAGIHAN_URL=http://103.23.103.43/WEB_TAGIHAN_PROJECT/WS_TAGIHAN_NAMA/index.php
 
-# DB yang sama dengan DEMO_WS (mst_qris, dll.)
+# DB yang sama dengan DEMO_WS (pwa_qris, dll.)
 TAGIHAN_DB_HOST=103.23.103.36
 TAGIHAN_DB_PORT=3306
 TAGIHAN_DB_DATABASE=nama_database_sekolah
@@ -222,9 +222,9 @@ Samakan dengan `TAGIHAN_DB_*` di Laravel `.env`.
 Tabel penting (minimal untuk QRIS + PWA):
 
 - Lihat **[§6b](#6b-query-sql--tabel-tambahan-pwa--multi-akun--notif)** / jalankan `database/sql/pwa_extra_tables.sql`
-- `mst_qris` / `mst_qris_item` / `log_qris_push`
-- `multi_account_*` (multi akun)
-- `push_subscriptions` (Web Push)
+- `pwa_qris` / `pwa_qris_item` / `pwa_log_qris_push`
+- `pwa_multi_account_*` (multi akun)
+- `pwa_push_subscriptions` (Web Push)
 - Tabel tagihan / saldo sesuai skema sekolah (sudah ada di DB billing)
 
 ### 6.2 Deploy WS
@@ -255,13 +255,13 @@ Semua tabel di bawah dijalankan di **DB sekolah / WS / billing** (sama dengan `T
 
 | Tabel | Fitur | Wajib? |
 |-------|--------|--------|
-| `multi_account_groups` | Multi akun PWA (grup) | Ya, jika multi akun dipakai |
-| `multi_account_members` | Multi akun PWA (anggota per NIS) | Ya, jika multi akun dipakai |
-| `login_tokens` | Login lewat link `/{token}` dari admin | Opsional |
-| `mst_qris` | Header generate QRIS / top up saldo | Ya, jika QRIS aktif |
-| `mst_qris_item` | Detail tagihan di dalam 1 QRIS (kosong untuk top up murni) | Ya, jika QRIS aktif |
-| `log_qris_push` | Audit callback `pushNotif` | Disarankan |
-| `push_subscriptions` | Endpoint Web Push per browser/HP | Ya, untuk notifikasi sistem |
+| `pwa_multi_account_groups` | Multi akun PWA (grup) | Ya, jika multi akun dipakai |
+| `pwa_multi_account_members` | Multi akun PWA (anggota per NIS) | Ya, jika multi akun dipakai |
+| `pwa_login_tokens` | Login lewat link `/{token}` dari admin | Opsional |
+| `pwa_qris` | Header generate QRIS / top up saldo | Ya, jika QRIS aktif |
+| `pwa_qris_item` | Detail tagihan di dalam 1 QRIS (kosong untuk top up murni) | Ya, jika QRIS aktif |
+| `pwa_log_qris_push` | Audit callback `pushNotif` | Disarankan |
+| `pwa_push_subscriptions` | Endpoint Web Push per browser/HP | Ya, untuk notifikasi sistem |
 
 ### Cara cepat (satu file)
 
@@ -275,6 +275,26 @@ File alternatif (sama isinya, di folder WS):
 ```text
 DEMO_WS_TAGIHAN_CICILAN/sql/install_missing_tables.sql
 ```
+
+### Upgrade DB lama (nama tabel tanpa prefix `pwa_`)
+
+Jika DB sudah punya `mst_qris`, `log_qris_push`, `push_subscriptions`, dst., **jangan** jalankan file install di atas — rename saja (data tetap):
+
+```bash
+mysql -h HOST -u USER -p NAMA_DB_SEKOLAH < DEMO_WS_TAGIHAN_CICILAN/sql/rename_tables_to_pwa.sql
+```
+
+| Nama lama | Nama baru |
+|-----------|-----------|
+| `login_tokens` | `pwa_login_tokens` |
+| `multi_account_groups` | `pwa_multi_account_groups` |
+| `multi_account_members` | `pwa_multi_account_members` |
+| `mst_qris` | `pwa_qris` |
+| `mst_qris_item` | `pwa_qris_item` |
+| `log_qris_push` | `pwa_log_qris_push` |
+| `push_subscriptions` | `pwa_push_subscriptions` |
+
+Deploy kode baru bersamaan dengan rename — kode baru hanya membaca nama `pwa_`.
 
 File terpisah per fitur:
 
@@ -294,14 +314,14 @@ php artisan migrate --database=tagihan --path=database/migrations/2026_09_24_000
 ### A) Multi akun PWA
 
 ```sql
-CREATE TABLE IF NOT EXISTS multi_account_groups (
+CREATE TABLE IF NOT EXISTS pwa_multi_account_groups (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   created_at DATETIME NULL,
   updated_at DATETIME NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS multi_account_members (
+CREATE TABLE IF NOT EXISTS pwa_multi_account_members (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   group_id BIGINT UNSIGNED NOT NULL,
   no_cust VARCHAR(50) NOT NULL COMMENT 'VA/NIS sudah dinormalisasi (normalizeVa)',
@@ -313,10 +333,10 @@ CREATE TABLE IF NOT EXISTS multi_account_members (
   created_at DATETIME NULL,
   updated_at DATETIME NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_member_no_cust (no_cust),
-  KEY idx_members_group (group_id),
-  CONSTRAINT fk_members_group
-    FOREIGN KEY (group_id) REFERENCES multi_account_groups(id)
+  UNIQUE KEY uq_pwa_member_no_cust (no_cust),
+  KEY idx_pwa_members_group (group_id),
+  CONSTRAINT fk_pwa_members_group
+    FOREIGN KEY (group_id) REFERENCES pwa_multi_account_groups(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
@@ -324,7 +344,7 @@ CREATE TABLE IF NOT EXISTS multi_account_members (
 ### B) Login token (opsional)
 
 ```sql
-CREATE TABLE IF NOT EXISTS login_tokens (
+CREATE TABLE IF NOT EXISTS pwa_login_tokens (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   token CHAR(64) NOT NULL COMMENT 'Hex 64 karakter; path URL GET /{token}',
   no_cust VARCHAR(50) NOT NULL COMMENT 'NIS/VA sudah dinormalisasi (tanpa prefix bank)',
@@ -336,17 +356,17 @@ CREATE TABLE IF NOT EXISTS login_tokens (
   created_at DATETIME NULL,
   updated_at DATETIME NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_login_tokens_token (token),
-  KEY idx_login_tokens_no_cust (no_cust),
-  KEY idx_login_tokens_expires (expires_at),
-  KEY idx_login_tokens_used (used_at)
+  UNIQUE KEY uq_pwa_login_tokens_token (token),
+  KEY idx_pwa_login_tokens_no_cust (no_cust),
+  KEY idx_pwa_login_tokens_expires (expires_at),
+  KEY idx_pwa_login_tokens_used (used_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
 ### C) QRIS + audit callback
 
 ```sql
-CREATE TABLE IF NOT EXISTS mst_qris (
+CREATE TABLE IF NOT EXISTS pwa_qris (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   custid VARCHAR(64) NOT NULL,
   nocust VARCHAR(64) NOT NULL,
@@ -367,14 +387,14 @@ CREATE TABLE IF NOT EXISTS mst_qris (
   updated_at DATETIME NULL,
   paid_at DATETIME NULL,
   PRIMARY KEY (id),
-  KEY idx_mst_qris_custid (custid),
-  KEY idx_mst_qris_nocust (nocust),
-  KEY idx_mst_qris_status (status),
-  KEY idx_mst_qris_qris_id (qris_id),
-  KEY idx_mst_qris_vano (vano)
+  KEY idx_pwa_qris_custid (custid),
+  KEY idx_pwa_qris_nocust (nocust),
+  KEY idx_pwa_qris_status (status),
+  KEY idx_pwa_qris_qris_id (qris_id),
+  KEY idx_pwa_qris_vano (vano)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS mst_qris_item (
+CREATE TABLE IF NOT EXISTS pwa_qris_item (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   payment_id BIGINT UNSIGNED NOT NULL,
   aa BIGINT UNSIGNED NOT NULL,
@@ -385,14 +405,14 @@ CREATE TABLE IF NOT EXISTS mst_qris_item (
   sisa_sebelum DECIMAL(18,2) NULL,
   created_at DATETIME NULL,
   PRIMARY KEY (id),
-  KEY idx_mst_qris_item_payment (payment_id),
-  KEY idx_mst_qris_item_aa (aa),
-  CONSTRAINT fk_mst_qris_item_payment
-    FOREIGN KEY (payment_id) REFERENCES mst_qris(id)
+  KEY idx_pwa_qris_item_payment (payment_id),
+  KEY idx_pwa_qris_item_aa (aa),
+  CONSTRAINT fk_pwa_qris_item_payment
+    FOREIGN KEY (payment_id) REFERENCES pwa_qris(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS log_qris_push (
+CREATE TABLE IF NOT EXISTS pwa_log_qris_push (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   payment_id BIGINT UNSIGNED NULL,
   event_type VARCHAR(32) NOT NULL DEFAULT 'push_notif',
@@ -415,19 +435,19 @@ CREATE TABLE IF NOT EXISTS log_qris_push (
   user_agent VARCHAR(255) NULL,
   created_at DATETIME NULL,
   PRIMARY KEY (id),
-  KEY idx_log_qris_push_qris_id (qris_id),
-  KEY idx_log_qris_push_vano (vano),
-  KEY idx_log_qris_push_payment (payment_id),
-  KEY idx_log_qris_push_custid (custid),
-  KEY idx_log_qris_push_created (created_at),
-  KEY idx_log_qris_push_event (event_type)
+  KEY idx_pwa_log_qris_push_qris_id (qris_id),
+  KEY idx_pwa_log_qris_push_vano (vano),
+  KEY idx_pwa_log_qris_push_payment (payment_id),
+  KEY idx_pwa_log_qris_push_custid (custid),
+  KEY idx_pwa_log_qris_push_created (created_at),
+  KEY idx_pwa_log_qris_push_event (event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
 ### D) Web Push — kirim notifikasi sistem
 
 ```sql
-CREATE TABLE IF NOT EXISTS push_subscriptions (
+CREATE TABLE IF NOT EXISTS pwa_push_subscriptions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   endpoint_hash VARCHAR(64) NOT NULL COMMENT 'sha256(endpoint) — unique pendek',
   endpoint TEXT NOT NULL COMMENT 'URL push service browser',
@@ -441,31 +461,32 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at DATETIME NULL,
   updated_at DATETIME NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY push_subscriptions_endpoint_hash_unique (endpoint_hash),
-  KEY push_subscriptions_nocust_index (nocust),
-  KEY push_subscriptions_vano_index (vano)
+  UNIQUE KEY pwa_push_subscriptions_endpoint_hash_unique (endpoint_hash),
+  KEY pwa_push_subscriptions_nocust_index (nocust),
+  KEY pwa_push_subscriptions_vano_index (vano)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 Alur data notif:
 
-1. Login PWA → browser subscribe → baris di `push_subscriptions` (`nocust` / `vano`).
-2. QRIS lunas → `mst_qris.paid_flag = 1` + baris `log_qris_push`.
+1. Login PWA → browser subscribe → baris di `pwa_push_subscriptions` (`nocust` / `vano`).
+2. QRIS lunas → `pwa_qris.paid_flag = 1` + baris `pwa_log_qris_push`.
 3. `demoInstallment.php` → `POST /push/notify-paid` → Laravel kirim Web Push ke endpoint yang cocok `nocust`/`vano`.
 
 ### Verifikasi setelah install
 
 ```sql
-SHOW TABLES LIKE 'multi_account%';
-SHOW TABLES LIKE 'login_tokens';
-SHOW TABLES LIKE 'mst_qris%';
-SHOW TABLES LIKE 'log_qris_push';
-SHOW TABLES LIKE 'push_subscriptions';
+SHOW TABLES LIKE 'pwa\_%';
+SHOW TABLES LIKE 'pwa_multi_account%';
+SHOW TABLES LIKE 'pwa_login_tokens';
+SHOW TABLES LIKE 'pwa_qris%';
+SHOW TABLES LIKE 'pwa_log_qris_push';
+SHOW TABLES LIKE 'pwa_push_subscriptions';
 
-SELECT COUNT(*) AS n FROM push_subscriptions;
-SELECT COUNT(*) AS n FROM multi_account_members;
+SELECT COUNT(*) AS n FROM pwa_push_subscriptions;
+SELECT COUNT(*) AS n FROM pwa_multi_account_members;
 SELECT id, nocust, amount, status, paid_flag, paid_at
-FROM mst_qris
+FROM pwa_qris
 ORDER BY id DESC
 LIMIT 10;
 ```
@@ -491,8 +512,8 @@ File contoh: `islamic_center/qris/pushNotif/demoInstallment.php`
 
 Yang dilakukan:
 
-1. Tandai QRIS paid di DB (`mst_qris`)
-2. Log ke `log_qris_push` (jika ada)
+1. Tandai QRIS paid di DB (`pwa_qris`)
+2. Log ke `pwa_log_qris_push` (jika ada)
 3. Forward token ke endpoint installment WS
 4. Panggil Web Push Laravel (`WEBPUSH_NOTIFY_URL` + secret) saat `newly_paid`
 
@@ -518,7 +539,7 @@ Callback QRIS harus mengarah ke URL `pushNotif.php` yang sama (sudah dikonfigura
 
 ### Cara kerja
 
-1. Setelah login, PWA **subscribe** Web Push (VAPID) → endpoint disimpan di tabel `push_subscriptions`.
+1. Setelah login, PWA **subscribe** Web Push (VAPID) → endpoint disimpan di tabel `pwa_push_subscriptions`.
 2. User generate QRIS/VA → status watch disimpan di `localStorage` (12 menit).
 3. Saat QRIS lunas, `demoInstallment.php` memanggil `POST /push/notify-paid` → server kirim Web Push.
 4. Service Worker (`public/sw.js`) menerima event `push` → tampilkan notifikasi sistem.
@@ -531,7 +552,7 @@ Callback QRIS harus mengarah ke URL `pushNotif.php` yang sama (sudah dikonfigura
 | HTTPS | Wajib untuk Push + Notification |
 | `VAPID_*` + `WEBPUSH_NOTIFY_SECRET` di `.env` Laravel | `php artisan webpush:vapid` atau `node scripts/generate-vapid.cjs` |
 | `WEBPUSH_NOTIFY_URL` + `WEBPUSH_NOTIFY_SECRET` di `islamic_center/.env` | URL = `https://DOMAIN/push/notify-paid` |
-| Tabel `push_subscriptions` di DB tagihan | `database/sql/push_subscriptions.sql` atau migrate |
+| Tabel `pwa_push_subscriptions` di DB tagihan | `database/sql/push_subscriptions.sql` atau migrate |
 | Izin notifikasi Granted | Satu kali di browser/HP |
 | `composer require minishlink/web-push` | Package kirim push |
 
@@ -570,23 +591,23 @@ Centang berurutan setelah deploy:
 - [ ] Tombol Top up QRIS muncul
 - [ ] QR tampil, bisa unduh gambar
 - [ ] Scan & bayar (nominal kecil)
-- [ ] Di DB: `mst_qris` jadi paid/success
-- [ ] Ada baris log di `log_qris_push` (jika tabel ada)
+- [ ] Di DB: `pwa_qris` jadi paid/success
+- [ ] Ada baris log di `pwa_log_qris_push` (jika tabel ada)
 - [ ] Forward ke `…/QRIS.php?token=` sukses (cek log PHP islamic_center)
 
 ### E. Notifikasi Web Push
 
-- [ ] Tabel `push_subscriptions` ada di DB tagihan
+- [ ] Tabel `pwa_push_subscriptions` ada di DB tagihan
 - [ ] `VAPID_*` + `WEBPUSH_NOTIFY_SECRET` di `.env` Laravel
 - [ ] `WEBPUSH_NOTIFY_URL` + secret di `islamic_center/.env`
 - [ ] Setelah login, browser minta izin notifikasi → **Allow**
-- [ ] Ada baris di `push_subscriptions` untuk `nocust` user
+- [ ] Ada baris di `pwa_push_subscriptions` untuk `nocust` user
 - [ ] Setelah QRIS paid: notifikasi sistem muncul (atau saat buka PWA lagi)
 - [ ] Install “Add to Home Screen” — icon & nama short_name benar
 
 ### F. Multi akun
 
-- [ ] Tabel `multi_account_groups` + `multi_account_members` ada
+- [ ] Tabel `pwa_multi_account_groups` + `pwa_multi_account_members` ada
 - [ ] Tambah akun kedua → switch → hapus OK
 
 ### G. PWA manifest

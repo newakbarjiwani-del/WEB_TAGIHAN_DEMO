@@ -780,7 +780,7 @@ class TagihanController extends Controller
             }
 
             $sql = 'SELECT id, qris_id, transaction_id, vano, amount, status, paid_flag, paid_at
-                    FROM mst_qris WHERE ('.implode(' OR ', $parts).')
+                    FROM pwa_qris WHERE ('.implode(' OR ', $parts).')
                     ORDER BY id DESC LIMIT 1';
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
@@ -892,14 +892,14 @@ class TagihanController extends Controller
             $sql = "SELECT q.id, q.amount, q.qris_id, q.transaction_id, q.vano,
                            q.description, q.status, q.paid_flag, q.paid_at,
                            q.created_at, q.updated_at, q.namacust
-                    FROM mst_qris q
+                    FROM pwa_qris q
                     WHERE (q.nocust = ? OR q.vano LIKE ?)
                       AND (q.paid_flag = 1 OR LOWER(COALESCE(q.status, '')) IN ('paid', 'success'))
                       AND (
                         LOWER(COALESCE(q.description, '')) LIKE '%top up%'
                         OR LOWER(COALESCE(q.description, '')) LIKE '%topup%'
                         OR NOT EXISTS (
-                          SELECT 1 FROM mst_qris_item i WHERE i.payment_id = q.id
+                          SELECT 1 FROM pwa_qris_item i WHERE i.payment_id = q.id
                         )
                       )
                     ORDER BY COALESCE(q.paid_at, q.updated_at, q.created_at) DESC, q.id DESC
