@@ -1226,11 +1226,24 @@ async function ensureWebPushSubscription() {
     if (!vapidRes.ok || !vapidJson.publicKey) return false;
 
     const reg = await navigator.serviceWorker.ready;
+    const serverKey = urlBase64ToUint8Array(vapidJson.publicKey);
     let sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const oldKey = sub.options && sub.options.applicationServerKey
+        ? new Uint8Array(sub.options.applicationServerKey)
+        : null;
+      const sameKey = oldKey
+        && oldKey.length === serverKey.length
+        && oldKey.every((b, i) => b === serverKey[i]);
+      if (!sameKey) {
+        await sub.unsubscribe().catch(() => {});
+        sub = null;
+      }
+    }
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidJson.publicKey),
+        applicationServerKey: serverKey,
       });
     }
     const body = sub.toJSON();

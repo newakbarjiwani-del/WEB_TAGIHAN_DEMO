@@ -208,7 +208,8 @@ class WebPushService
             } else {
                 $failed++;
                 $code = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
-                if (in_array($code, [404, 410], true)) {
+                // 401/403 = subscription dibuat dengan VAPID key lain; app akan subscribe ulang saat dibuka
+                if (in_array($code, [401, 403, 404, 410], true)) {
                     PushSubscription::where('endpoint', $report->getEndpoint())->delete();
                 }
                 $errors[] = ($report->getReason() ?: 'send fail').' code='.$code;
