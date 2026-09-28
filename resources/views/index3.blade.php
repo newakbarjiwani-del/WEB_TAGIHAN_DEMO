@@ -1692,6 +1692,7 @@ function formatNovaDisplay(va) {
   if (!n || n === '-') return '-';
   n = n.replace(/^(751000|757777|797766)/, '');
   n = n.replace(/^0+/, '') || n;
+  if (/^\d+$/.test(n)) n = n.padStart(10, '0');
   return n ? ('751000' + n) : '-';
 }
 

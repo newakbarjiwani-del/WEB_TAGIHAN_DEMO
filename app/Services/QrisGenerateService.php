@@ -64,8 +64,8 @@ class QrisGenerateService
         if ($nocust === '') {
             throw new RuntimeException('nocust wajib diisi untuk vano QRIS');
         }
-        // VA bank: 751000 + NOCUST (routing pushNotif by prefix 751000)
-        $vano = '751000'.$nocust;
+        // VA bank: 751000 + NOCUST 10 digit (routing pushNotif by prefix 751000)
+        $vano = \App\Http\Controllers\TagihanController::formatNova($nocust);
         $transactionId = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
         $amountStr = (string) $total;
 

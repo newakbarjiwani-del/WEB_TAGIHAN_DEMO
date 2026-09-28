@@ -197,7 +197,7 @@ if (! function_exists('di_mark_qris_paid')) {
             'result' => 'not_found',
             'payment_id' => null,
             'custid' => null,
-            'nocust' => ($vanoVal !== '' && strlen($vanoVal) > 6) ? substr($vanoVal, 6) : null,
+            'nocust' => ($vanoVal !== '' && strlen($vanoVal) > 6) ? (ltrim(substr($vanoVal, 6), '0') ?: substr($vanoVal, 6)) : null,
             'row' => null,
         ];
 

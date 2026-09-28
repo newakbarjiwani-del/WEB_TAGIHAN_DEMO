@@ -16,6 +16,7 @@ Dokumentasi lengkap untuk menyalin project ini sebagai **base** white-label tagi
 4. [Setup Laravel (frontend PWA)](#4-setup-laravel-frontend-pwa)
 5. [Setup white-label / brand](#5-setup-white-label--brand)
 6. [Setup DEMO_WS (backend API)](#6-setup-demo_ws-backend-api)
+
 6b. [Query SQL — tabel tambahan PWA / multi akun / notif](#6b-query-sql--tabel-tambahan-pwa--multi-akun--notif)
 7. [Setup islamic_center (callback QRIS)](#7-setup-islamic_center-callback-qris)
 8. [Notifikasi sistem (Web Push)](#8-notifikasi-sistem-web-push--resume-saat-buka-pwa)
@@ -24,6 +25,8 @@ Dokumentasi lengkap untuk menyalin project ini sebagai **base** white-label tagi
 11. [Peta file penting](#11-peta-file-penting)
 
 ---
+
+
 
 ## 1. Arsitektur singkat
 
@@ -50,15 +53,19 @@ Dokumentasi lengkap untuk menyalin project ini sebagai **base** white-label tagi
 
 **Tiga komponen yang harus ikut di-copy / di-deploy:**
 
-| Komponen | Folder | Peran |
-|----------|--------|--------|
-| Frontend PWA | root Laravel (`app/`, `resources/`, `public/`, …) | UI login, bayar, PWA, poll status + notif |
-| Web Service | `DEMO_WS_TAGIHAN_CICILAN/` (rename per client) | API cek tagihan, generate VA/QRIS |
-| Callback QRIS | `islamic_center/qris/` (+ config DB) | Terima notif bayar dari bank, update DB, forward saldo |
 
-Prefix VA contoh demo: **`751000`**. Setiap client baru biasanya punya prefix VA sendiri.
+| Komponen      | Folder                                            | Peran                                                  |
+| ------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| Frontend PWA  | root Laravel (`app/`, `resources/`, `public/`, …) | UI login, bayar, PWA, poll status + notif              |
+| Web Service   | `DEMO_WS_TAGIHAN_CICILAN/` (rename per client)    | API cek tagihan, generate VA/QRIS                      |
+| Callback QRIS | `islamic_center/qris/` (+ config DB)              | Terima notif bayar dari bank, update DB, forward saldo |
+
+
+Prefix VA contoh demo: `751000`. Setiap client baru biasanya punya prefix VA sendiri.
 
 ---
+
+
 
 ## 2. Yang perlu disiapkan
 
@@ -73,17 +80,23 @@ Prefix VA contoh demo: **`751000`**. Setiap client baru biasanya punya prefix VA
 
 ---
 
+
+
 ## 3. Cara copy project
+
+
 
 ### Opsi A — Copy folder (paling sederhana)
 
 1. Salin seluruh folder `WEB_TAGIHAN_DEMO` → misalnya `WEB_TAGIHAN_NAMA_SEKOLAH`.
 2. Rename folder WS di dalamnya:
-   - `DEMO_WS_TAGIHAN_CICILAN` → `WS_TAGIHAN_NAMA_SEKOLAH` (atau pola yang dipakai di server `103.23.103.43`).
+  - `DEMO_WS_TAGIHAN_CICILAN` → `WS_TAGIHAN_NAMA_SEKOLAH` (atau pola yang dipakai di server `103.23.103.43`).
 3. Deploy:
-   - Laravel → document root / subdomain client
-   - WS → path di server API (contoh `…/WEB_TAGIHAN_PROJECT/WS_…/`)
-   - Handler callback → server `islamic_center` (atau salin file handler baru ke sana)
+  - Laravel → document root / subdomain client
+  - WS → path di server API (contoh `…/WEB_TAGIHAN_PROJECT/WS_…/`)
+  - Handler callback → server `islamic_center` (atau salin file handler baru ke sana)
+
+
 
 ### Opsi B — Git
 
@@ -106,6 +119,8 @@ Jangan commit `.env` berisi password/secret.
 - Logo, warna, `BRAND_PAYMENT_MODEL`, `BRAND_PAYMENT_QRIS`
 
 ---
+
+
 
 ## 4. Setup Laravel (frontend PWA)
 
@@ -151,7 +166,7 @@ php artisan cache:clear
 chmod -R ug+rwx storage bootstrap/cache   # Linux
 ```
 
-Document root web mengarah ke folder **`public/`**.
+Document root web mengarah ke folder `public/`.
 
 Pastikan file PWA ada:
 
@@ -162,22 +177,26 @@ Pastikan file PWA ada:
 
 ---
 
+
+
 ## 5. Setup white-label / brand
 
-Konfigurasi utama: **`config/brand.php`** (override lewat `.env`).
+Konfigurasi utama: `config/brand.php` (override lewat `.env`).
 
-| Variabel | Fungsi |
-|----------|--------|
-| `BRAND_NAME` / `BRAND_SHORT_NAME` | Nama di UI & PWA |
-| `BRAND_TAGLINE`, `BRAND_DESCRIPTION` | Teks pendukung |
-| `BRAND_LOGO`, `BRAND_FAVICON` | File di `public/` |
-| `BRAND_ICON_192`, `BRAND_ICON_512` | Icon PWA / notifikasi |
-| `BRAND_PAYMENT_MODEL` | `1` / `bills` = pilih tagihan + bayar VA; `2` / `saldo` = tagihan info saja, VA kartu isi saldo (**default `2`**) |
-| `BRAND_PAYMENT_QRIS` | `true` = tombol Top up saldo via QRIS |
-| `BRAND_COLOR_*` | Tema (hex **wajib pakai tanda kutip** di `.env`, karena `#` = komentar) |
-| `BRAND_RADIUS` | Radius UI (default 8) |
-| `BRAND_PWA_ENABLED` | Register service worker |
-| `QRIS_*` | Server generate QRIS, JWT, account, mitra |
+
+| Variabel                             | Fungsi                                                                                                            |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `BRAND_NAME` / `BRAND_SHORT_NAME`    | Nama di UI & PWA                                                                                                  |
+| `BRAND_TAGLINE`, `BRAND_DESCRIPTION` | Teks pendukung                                                                                                    |
+| `BRAND_LOGO`, `BRAND_FAVICON`        | File di `public/`                                                                                                 |
+| `BRAND_ICON_192`, `BRAND_ICON_512`   | Icon PWA / notifikasi                                                                                             |
+| `BRAND_PAYMENT_MODEL`                | `1` / `bills` = pilih tagihan + bayar VA; `2` / `saldo` = tagihan info saja, VA kartu isi saldo (**default** `2`) |
+| `BRAND_PAYMENT_QRIS`                 | `true` = tombol Top up saldo via QRIS                                                                             |
+| `BRAND_COLOR_*`                      | Tema (hex **wajib pakai tanda kutip** di `.env`, karena `#` = komentar)                                           |
+| `BRAND_RADIUS`                       | Radius UI (default 8)                                                                                             |
+| `BRAND_PWA_ENABLED`                  | Register service worker                                                                                           |
+| `QRIS_*`                             | Server generate QRIS, JWT, account, mitra                                                                         |
+
 
 Contoh warna aman di `.env`:
 
@@ -185,6 +204,8 @@ Contoh warna aman di `.env`:
 BRAND_COLOR_PRIMARY="#0B7EB8"
 BRAND_COLOR_HIGHLIGHT="#E89B0C"
 ```
+
+
 
 ### Ganti logo & icon PWA
 
@@ -196,11 +217,13 @@ BRAND_COLOR_HIGHLIGHT="#E89B0C"
 php public/icons/generate-icons.php
 ```
 
-4. Atau copy manual PNG 192/512 ke `public/icons/` dan set `BRAND_ICON_192` / `BRAND_ICON_512`.
+1. Atau copy manual PNG 192/512 ke `public/icons/` dan set `BRAND_ICON_192` / `BRAND_ICON_512`.
 
 Setelah ganti brand/icon, minta user **uninstall PWA lama** atau clear site data agar manifest & cache SW terbarui (`sw.js` versi cache: `tagihan-pwa-v7`).
 
 ---
+
+
 
 ## 6. Setup DEMO_WS (backend API)
 
@@ -208,7 +231,7 @@ Folder: `DEMO_WS_TAGIHAN_CICILAN/` (rename sesuai client).
 
 ### 6.1 Database
 
-Edit **`DEMO_WS_TAGIHAN_CICILAN/config/database.php`**:
+Edit `DEMO_WS_TAGIHAN_CICILAN/config/database.php`:
 
 ```php
 $host = "...";
@@ -226,6 +249,8 @@ Tabel penting (minimal untuk QRIS + PWA):
 - `pwa_multi_account_*` (multi akun)
 - `pwa_push_subscriptions` (Web Push)
 - Tabel tagihan / saldo sesuai skema sekolah (sudah ada di DB billing)
+
+
 
 ### 6.2 Deploy WS
 
@@ -247,21 +272,27 @@ Ganti path `DEMO_INSTALLMENT` jika client memakai endpoint installment lain.
 
 ---
 
+
+
 ## 6b. Query SQL — tabel tambahan PWA / multi akun / notif
 
-Semua tabel di bawah dijalankan di **DB sekolah / WS / billing** (sama dengan `TAGIHAN_DB_*` dan `DEMO_WS_…/config/database.php`), **bukan** DB Laravel default (`DB_DATABASE`) kecuali memang digabung.
+Semua tabel di bawah dijalankan di **DB sekolah / WS / billing** (sama dengan `TAGIHAN_DB_`* dan `DEMO_WS_…/config/database.php`), **bukan** DB Laravel default (`DB_DATABASE`) kecuali memang digabung.
 
 ### Ringkasan tabel
 
-| Tabel | Fitur | Wajib? |
-|-------|--------|--------|
-| `pwa_multi_account_groups` | Multi akun PWA (grup) | Ya, jika multi akun dipakai |
-| `pwa_multi_account_members` | Multi akun PWA (anggota per NIS) | Ya, jika multi akun dipakai |
-| `pwa_login_tokens` | Login lewat link `/{token}` dari admin | Opsional |
-| `pwa_qris` | Header generate QRIS / top up saldo | Ya, jika QRIS aktif |
-| `pwa_qris_item` | Detail tagihan di dalam 1 QRIS (kosong untuk top up murni) | Ya, jika QRIS aktif |
-| `pwa_log_qris_push` | Audit callback `pushNotif` | Disarankan |
-| `pwa_push_subscriptions` | Endpoint Web Push per browser/HP | Ya, untuk notifikasi sistem |
+
+| Tabel                       | Fitur                                                      | Wajib?                      |
+| --------------------------- | ---------------------------------------------------------- | --------------------------- |
+| `pwa_multi_account_groups`  | Multi akun PWA (grup)                                      | Ya, jika multi akun dipakai |
+| `pwa_multi_account_members` | Multi akun PWA (anggota per NIS)                           | Ya, jika multi akun dipakai |
+| `pwa_login_tokens`          | Login lewat link `/{token}` dari admin                     | Opsional                    |
+| `pwa_qris`                  | Header generate QRIS / top up saldo                        | Ya, jika QRIS aktif         |
+| `pwa_qris_item`             | Detail tagihan di dalam 1 QRIS (kosong untuk top up murni) | Ya, jika QRIS aktif         |
+| `pwa_log_qris_push`         | Audit callback `pushNotif`                                 | Disarankan                  |
+| `pwa_push_subscriptions`    | Endpoint Web Push per browser/HP                           | Ya, untuk notifikasi sistem |
+
+
+
 
 ### Cara cepat (satu file)
 
@@ -276,6 +307,8 @@ File alternatif (sama isinya, di folder WS):
 DEMO_WS_TAGIHAN_CICILAN/sql/install_missing_tables.sql
 ```
 
+
+
 ### Upgrade DB lama (nama tabel tanpa prefix `pwa_`)
 
 Jika DB sudah punya `mst_qris`, `log_qris_push`, `push_subscriptions`, dst., **jangan** jalankan file install di atas — rename saja (data tetap):
@@ -284,32 +317,38 @@ Jika DB sudah punya `mst_qris`, `log_qris_push`, `push_subscriptions`, dst., **j
 mysql -h HOST -u USER -p NAMA_DB_SEKOLAH < DEMO_WS_TAGIHAN_CICILAN/sql/rename_tables_to_pwa.sql
 ```
 
-| Nama lama | Nama baru |
-|-----------|-----------|
-| `login_tokens` | `pwa_login_tokens` |
-| `multi_account_groups` | `pwa_multi_account_groups` |
+
+| Nama lama               | Nama baru                   |
+| ----------------------- | --------------------------- |
+| `login_tokens`          | `pwa_login_tokens`          |
+| `multi_account_groups`  | `pwa_multi_account_groups`  |
 | `multi_account_members` | `pwa_multi_account_members` |
-| `mst_qris` | `pwa_qris` |
-| `mst_qris_item` | `pwa_qris_item` |
-| `log_qris_push` | `pwa_log_qris_push` |
-| `push_subscriptions` | `pwa_push_subscriptions` |
+| `mst_qris`              | `pwa_qris`                  |
+| `mst_qris_item`         | `pwa_qris_item`             |
+| `log_qris_push`         | `pwa_log_qris_push`         |
+| `push_subscriptions`    | `pwa_push_subscriptions`    |
+
 
 Deploy kode baru bersamaan dengan rename — kode baru hanya membaca nama `pwa_`.
 
 File terpisah per fitur:
 
-| File | Isi |
-|------|-----|
-| `DEMO_WS_TAGIHAN_CICILAN/sql/multi_account_tables.sql` | Multi akun |
-| `DEMO_WS_TAGIHAN_CICILAN/sql/login_tokens.sql` | Login token |
-| `DEMO_WS_TAGIHAN_CICILAN/sql/qris_payment_tables.sql` | QRIS + log |
-| `database/sql/push_subscriptions.sql` | Web Push saja |
+
+| File                                                   | Isi           |
+| ------------------------------------------------------ | ------------- |
+| `DEMO_WS_TAGIHAN_CICILAN/sql/multi_account_tables.sql` | Multi akun    |
+| `DEMO_WS_TAGIHAN_CICILAN/sql/login_tokens.sql`         | Login token   |
+| `DEMO_WS_TAGIHAN_CICILAN/sql/qris_payment_tables.sql`  | QRIS + log    |
+| `database/sql/push_subscriptions.sql`                  | Web Push saja |
+
 
 Atau migrate Laravel (koneksi `tagihan`):
 
 ```bash
 php artisan migrate --database=tagihan --path=database/migrations/2026_09_24_000001_create_push_subscriptions_table.php
 ```
+
+
 
 ### A) Multi akun PWA
 
@@ -341,6 +380,8 @@ CREATE TABLE IF NOT EXISTS pwa_multi_account_members (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
+
+
 ### B) Login token (opsional)
 
 ```sql
@@ -362,6 +403,8 @@ CREATE TABLE IF NOT EXISTS pwa_login_tokens (
   KEY idx_pwa_login_tokens_used (used_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
+
+
 
 ### C) QRIS + audit callback
 
@@ -444,6 +487,8 @@ CREATE TABLE IF NOT EXISTS pwa_log_qris_push (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
+
+
 ### D) Web Push — kirim notifikasi sistem
 
 ```sql
@@ -473,6 +518,8 @@ Alur data notif:
 2. QRIS lunas → `pwa_qris.paid_flag = 1` + baris `pwa_log_qris_push`.
 3. `demoInstallment.php` → `POST /push/notify-paid` → Laravel kirim Web Push ke endpoint yang cocok `nocust`/`vano`.
 
+
+
 ### Verifikasi setelah install
 
 ```sql
@@ -493,9 +540,11 @@ LIMIT 10;
 
 ---
 
+
+
 ## 7. Setup islamic_center (callback QRIS)
 
-Folder referensi di repo: **`islamic_center/`**.
+Folder referensi di repo: `islamic_center/`.
 
 Di server produksi islamic_center biasanya sudah ada `qris/pushNotif.php`. Untuk client baru:
 
@@ -505,6 +554,8 @@ Salin / edit misalnya `islamic_center/config/connectTagihanCicilan.php`:
 
 - Host, DB, user, password
 - `vano_prefix` / `nova_bank_prefix` (contoh demo: `751000`)
+
+
 
 ### 7.2 Handler per prefix VA
 
@@ -516,6 +567,8 @@ Yang dilakukan:
 2. Log ke `pwa_log_qris_push` (jika ada)
 3. Forward token ke endpoint installment WS
 4. Panggil Web Push Laravel (`WEBPUSH_NOTIFY_URL` + secret) saat `newly_paid`
+
+
 
 ### 7.3 Daftarkan di `pushNotif.php`
 
@@ -535,7 +588,11 @@ Callback QRIS harus mengarah ke URL `pushNotif.php` yang sama (sudah dikonfigura
 
 ---
 
+
+
 ## 8. Notifikasi sistem (Web Push + resume saat buka PWA)
+
+
 
 ### Cara kerja
 
@@ -545,16 +602,22 @@ Callback QRIS harus mengarah ke URL `pushNotif.php` yang sama (sudah dikonfigura
 4. Service Worker (`public/sw.js`) menerima event `push` → tampilkan notifikasi sistem.
 5. **Cadangan:** kalau PWA ditutup lalu dibuka lagi, watch di-resume dari `localStorage` → poll status → notif + toast (meski push tertunda di HP).
 
+
+
 ### Syarat
 
-| Syarat | Keterangan |
-|--------|------------|
-| HTTPS | Wajib untuk Push + Notification |
-| `VAPID_*` + `WEBPUSH_NOTIFY_SECRET` di `.env` Laravel | `php artisan webpush:vapid` atau `node scripts/generate-vapid.cjs` |
-| `WEBPUSH_NOTIFY_URL` + `WEBPUSH_NOTIFY_SECRET` di `islamic_center/.env` | URL = `https://DOMAIN/push/notify-paid` |
-| Tabel `pwa_push_subscriptions` di DB tagihan | `database/sql/push_subscriptions.sql` atau migrate |
-| Izin notifikasi Granted | Satu kali di browser/HP |
-| `composer require minishlink/web-push` | Package kirim push |
+
+| Syarat                                                                  | Keterangan                                                         |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| HTTPS                                                                   | Wajib untuk Push + Notification                                    |
+| `VAPID_*` + `WEBPUSH_NOTIFY_SECRET` di `.env` Laravel                   | `php artisan webpush:vapid` atau `node scripts/generate-vapid.cjs` |
+| `WEBPUSH_NOTIFY_URL` + `WEBPUSH_NOTIFY_SECRET` di `islamic_center/.env` | URL = `https://DOMAIN/push/notify-paid`                            |
+| Tabel `pwa_push_subscriptions` di DB tagihan                            | `database/sql/push_subscriptions.sql` atau migrate                 |
+| Izin notifikasi Granted                                                 | Satu kali di browser/HP                                            |
+| `composer require minishlink/web-push`                                  | Package kirim push                                                 |
+
+
+
 
 ### File terkait
 
@@ -564,6 +627,8 @@ Callback QRIS harus mengarah ke URL `pushNotif.php` yang sama (sudah dikonfigura
 - `islamic_center/qris/pushNotif/demoInstallment.php` — trigger notify saat `newly_paid`
 
 ---
+
+
 
 ## 9. Checklist uji fungsi
 
@@ -575,16 +640,22 @@ Centang berurutan setelah deploy:
 - [ ] `composer install` & `APP_KEY` sudah ada
 - [ ] Tidak ada error 500 di `storage/logs/laravel.log`
 
+
+
 ### B. Login & tagihan
 
 - [ ] Login dengan NIS/VA valid + tahun akademik
 - [ ] Daftar tagihan / saldo tampil
 - [ ] Multi-akun (jika dipakai) tambah & switch OK
 
+
+
 ### C. VA
 
 - [ ] Generate VA berhasil
 - [ ] Setelah bayar VA (sandbox/bank), status / saldo berubah saat refresh atau lewat watch
+
+
 
 ### D. QRIS (jika `BRAND_PAYMENT_QRIS=true`)
 
@@ -594,6 +665,8 @@ Centang berurutan setelah deploy:
 - [ ] Di DB: `pwa_qris` jadi paid/success
 - [ ] Ada baris log di `pwa_log_qris_push` (jika tabel ada)
 - [ ] Forward ke `…/QRIS.php?token=` sukses (cek log PHP islamic_center)
+
+
 
 ### E. Notifikasi Web Push
 
@@ -605,10 +678,14 @@ Centang berurutan setelah deploy:
 - [ ] Setelah QRIS paid: notifikasi sistem muncul (atau saat buka PWA lagi)
 - [ ] Install “Add to Home Screen” — icon & nama short_name benar
 
+
+
 ### F. Multi akun
 
 - [ ] Tabel `pwa_multi_account_groups` + `pwa_multi_account_members` ada
 - [ ] Tambah akun kedua → switch → hapus OK
+
+
 
 ### G. PWA manifest
 
@@ -617,19 +694,25 @@ Centang berurutan setelah deploy:
 
 ---
 
+
+
 ## 10. Troubleshooting
 
-| Gejala | Cek |
-|--------|-----|
-| Login gagal / timeout | `WS_TAGIHAN_URL`, firewall, log WS & Laravel |
-| QRIS generate error | `QRIS_*`, JWT secret, account_no, koneksi ke server QRIS |
-| Bayar sukses di e-wallet tapi saldo tidak berubah | Cabang prefix di `pushNotif.php`, DB connect, `$forwardBase` di handler, log `php_errors.log` islamic_center |
-| Notif tidak muncul | Izin Notification, PWA/tab terbuka, SW di Application tab DevTools, poll `/cek-status-pembayaran` return `paid: true` |
-| Warna brand aneh / kosong | Hex di `.env` tanpa kutip (`#` terpotong) — pakai `"#0B7EB8"` |
-| Icon PWA lama | Naikkan `CACHE_VERSION` di `sw.js`, clear site data, reinstall PWA |
-| CSRF 419 | Pastikan meta csrf & session cookie domain/`APP_URL` benar |
+
+| Gejala                                            | Cek                                                                                                                   |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Login gagal / timeout                             | `WS_TAGIHAN_URL`, firewall, log WS & Laravel                                                                          |
+| QRIS generate error                               | `QRIS_*`, JWT secret, account_no, koneksi ke server QRIS                                                              |
+| Bayar sukses di e-wallet tapi saldo tidak berubah | Cabang prefix di `pushNotif.php`, DB connect, `$forwardBase` di handler, log `php_errors.log` islamic_center          |
+| Notif tidak muncul                                | Izin Notification, PWA/tab terbuka, SW di Application tab DevTools, poll `/cek-status-pembayaran` return `paid: true` |
+| Warna brand aneh / kosong                         | Hex di `.env` tanpa kutip (`#` terpotong) — pakai `"#0B7EB8"`                                                         |
+| Icon PWA lama                                     | Naikkan `CACHE_VERSION` di `sw.js`, clear site data, reinstall PWA                                                    |
+| CSRF 419                                          | Pastikan meta csrf & session cookie domain/`APP_URL` benar                                                            |
+
 
 ---
+
+
 
 ## 11. Peta file penting
 
@@ -670,14 +753,16 @@ WEB_TAGIHAN_*/
 
 ---
 
+
+
 ## Ringkasan cepat copy client baru
 
-1. Copy repo → rename WS folder.  
-2. `composer install` + `.env` (APP_URL, WS, DB, brand, QRIS, VAPID, SESSION_LIFETIME).  
-3. Jalankan SQL: `database/sql/pwa_extra_tables.sql` di DB sekolah.  
-4. Samakan DB di WS `database.php` + islamic_center connect.  
-5. Daftarkan prefix VA di `pushNotif.php` + handler forward + env Web Push.  
-6. Deploy Laravel `public/`, WS, handler callback.  
-7. Uji login → multi akun → QRIS → paid → notifikasi + history top up.  
+1. Copy repo → rename WS folder.
+2. `composer install` + `.env` (APP_URL, WS, DB, brand, QRIS, VAPID, SESSION_LIFETIME).
+3. Jalankan SQL: `database/sql/pwa_extra_tables.sql` di DB sekolah.
+4. Samakan DB di WS `database.php` + islamic_center connect.
+5. Daftarkan prefix VA di `pushNotif.php` + handler forward + env Web Push.
+6. Deploy Laravel `public/`, WS, handler callback.
+7. Uji login → multi akun → QRIS → paid → notifikasi + history top up.
 
 Selesai: base master siap dipakai ulang untuk project berikutnya.

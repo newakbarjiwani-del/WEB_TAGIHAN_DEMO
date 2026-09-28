@@ -44,7 +44,13 @@ class TagihanController extends Controller
             return '-';
         }
 
-        return '751000'.$n;
+        return '751000'.self::padVaSuffix($n);
+    }
+
+    /** Bank/inquiry VA: nomor setelah prefix harus 10 digit (kurang → 0 di depan). */
+    public static function padVaSuffix(string $nocust): string
+    {
+        return ctype_digit($nocust) ? str_pad($nocust, 10, '0', STR_PAD_LEFT) : $nocust;
     }
 
     /**
